@@ -1,1 +1,14 @@
-{ "engines": { "node": "20.x" } }
+{
+  "name": "eco-forecast-ai",
+  "version": "1.0.0",
+  "description": "EcoForecast AI - Economic Impact Forecasting",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Build complete'"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
