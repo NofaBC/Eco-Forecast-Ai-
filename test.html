@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test - EcoForecast AI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        pre {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+    </style>
+</head>
+<body>
+    <h1>EcoForecast AI - API Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Check API Availability</h2>
+        <button onclick="testApiAvailability()">Test /api/test</button>
+        <pre id="test1-result">Click button to test...</pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Test Forecast Endpoint</h2>
+        <button onclick="testForecastEndpoint()">Test /api/forecast</button>
+        <pre id="test2-result">Click button to test...</pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: Full Forecast Request</h2>
+        <button onclick="testFullForecast()">Run Complete Forecast</button>
+        <pre id="test3-result">Click button to test...</pre>
+    </div>
+
+    <script>
+        async function testApiAvailability() {
+            const resultEl = document.getElementById('test1-result');
+            resultEl.textContent = 'Testing...';
+            
+            try {
+                const response = await fetch('/api/test');
+                const data = await response.json();
+                resultEl.innerHTML = `<span class="success">✓ SUCCESS</span>\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultEl.innerHTML = `<span class="error">✗ ERROR</span>\n${error.message}`;
+            }
+        }
+
+        async function testForecastEndpoint() {
+            const resultEl = document.getElementById('test2-result');
+            resultEl.textContent = 'Testing...';
+            
+            try {
+                const response = await fetch('/api/forecast', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        event: 'Test event',
+                        city: 'Test City',
+                        industry: 'Test Industry'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultEl.innerHTML = `<span class="success">✓ SUCCESS</span>\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultEl.innerHTML = `<span class="error">✗ ERROR (${response.status})</span>\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultEl.innerHTML = `<span class="error">✗ ERROR</span>\n${error.message}`;
+            }
+        }
+
+        async function testFullForecast() {
+            const resultEl = document.getElementById('test3-result');
+            resultEl.textContent = 'Running forecast...';
+            
+            try {
+                const requestData = {
+                    event: 'US-China tariff escalation',
+                    city: 'Los Angeles',
+                    state: 'California',
+                    country: 'USA',
+                    industry: 'Manufacturing',
+                    naics: '336',
+                    horizon: '3mo',
+                    scenario: 'base',
+                    extraFactors: 'Supply chain disruptions expected'
+                };
+
+                console.log('Sending request:', requestData);
+
+                const response = await fetch('/api/forecast', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                console.log('Response status:', response.status);
+                
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (response.ok && data.success) {
+                    resultEl.innerHTML = `<span class="success">✓ FORECAST SUCCESS</span>\n\n` +
+                        `Location: ${data.location}\n` +
+                        `Industry: ${data.industry}\n` +
+                        `Scenario: ${data.scenario}\n\n` +
+                        `FORECAST:\n` +
+                        `  Demand Shift: ${data.forecast.demand.shift}% (${data.forecast.demand.direction})\n` +
+                        `  Cost Shift: ${data.forecast.cost.shift}% (${data.forecast.cost.direction})\n` +
+                        `  Margin Shift: ${data.forecast.margin.shift}% (${data.forecast.margin.direction})\n\n` +
+                        `Confidence: ${data.confidence}\n\n` +
+                        `TOP DRIVERS:\n${data.drivers.map(d => `  • ${d.factor} (${d.weight}%) - ${d.description}`).join('\n')}\n\n` +
+                        `Full Response:\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultEl.innerHTML = `<span class="error">✗ ERROR (${response.status})</span>\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                resultEl.innerHTML = `<span class="error">✗ ERROR</span>\n${error.message}\n${error.stack}`;
+            }
+        }
+    </script>
+</body>
+</html>
