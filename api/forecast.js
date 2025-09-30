@@ -18,10 +18,15 @@ export default async function handler(req, res) {
 
   // Only accept POST requests
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ 
+      error: 'Method not allowed',
+      message: `Expected POST, got ${req.method}`
+    });
   }
 
   try {
+    console.log('Received request body:', JSON.stringify(req.body));
+
     // Extract request data
     const {
       event,
@@ -33,18 +38,24 @@ export default async function handler(req, res) {
       horizon = '3mo',
       scenario = 'base',
       extraFactors = ''
-    } = req.body;
+    } = req.body || {};
+
+    console.log('Parsed params:', { event, city, industry, naics, horizon, scenario });
 
     // Validate required fields
     if (!event || !city || !industry) {
+      console.log('Validation failed - missing required fields');
       return res.status(400).json({
         error: 'Missing required fields',
-        required: ['event', 'city', 'industry']
+        required: ['event', 'city', 'industry'],
+        received: { event: !!event, city: !!city, industry: !!industry }
       });
     }
 
-    // Simulate AI processing (replace this with actual AI/LLM API call)
-    const forecast = await generateForecast({
+    console.log('Generating forecast...');
+
+    // Generate the forecast
+    const forecast = generateForecast({
       event,
       city,
       state,
@@ -56,20 +67,24 @@ export default async function handler(req, res) {
       extraFactors
     });
 
+    console.log('Forecast generated successfully');
+
     // Return the forecast
     return res.status(200).json(forecast);
 
   } catch (error) {
     console.error('Forecast error:', error);
+    console.error('Error stack:', error.stack);
     return res.status(500).json({
       error: 'Internal server error',
-      message: error.message
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }
 
-// Main forecast generation function
-async function generateForecast(params) {
+// Main forecast generation function (synchronous - no await needed)
+function generateForecast(params) {
   const {
     event,
     city,
@@ -82,6 +97,8 @@ async function generateForecast(params) {
     extraFactors
   } = params;
 
+  console.log('Analyzing event...');
+  
   // Analyze the event to determine impact direction
   const eventAnalysis = analyzeEvent(event, industry);
 
@@ -107,7 +124,7 @@ async function generateForecast(params) {
   // Calculate confidence based on data quality
   const confidence = calculateConfidence(city, industry, naics, horizon);
 
-  return {
+  const result = {
     success: true,
     location: `${city}${state ? ', ' + state : ''}, ${country}`,
     industry: industry,
@@ -136,6 +153,9 @@ async function generateForecast(params) {
     timestamp: new Date().toISOString(),
     notes: extraFactors || 'No additional factors provided'
   };
+
+  console.log('Forecast result:', JSON.stringify(result));
+  return result;
 }
 
 // Analyze event sentiment and impact
@@ -146,7 +166,7 @@ function analyzeEvent(event, industry) {
   const negativeKeywords = [
     'war', 'conflict', 'escalation', 'tariff', 'sanction', 'embargo',
     'hurricane', 'disaster', 'pandemic', 'recession', 'crisis', 'crash',
-    'ban', 'restriction', 'shutdown', 'strike', 'riot'
+    'ban', 'restriction', 'shutdown', 'strike', 'riot', 'attack'
   ];
   
   // Positive keywords
@@ -330,36 +350,3 @@ function calculateConfidence(city, industry, naics, horizon) {
 
   return `${confidence}%`;
 }
-
-// Optional: Integration point for actual AI/LLM services
-// Uncomment and configure when you have API keys
-/*
-async function callAIService(prompt) {
-  // Example: OpenAI GPT-4 integration
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-    },
-    body: JSON.stringify({
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an economic forecasting expert analyzing business impacts.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 500
-    })
-  });
-
-  const data = await response.json();
-  return data.choices[0].message.content;
-}
-*/
