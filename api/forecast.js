@@ -1,352 +1,179 @@
-// api/forecast.js - Vercel Serverless Function for EcoForecast AI
+// Node runtime (default on Vercel). Uses OpenRouter if key exists, else safe demo.
+// No imports required.
+
+const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY || "";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_MODEL = "openai/gpt-4o-mini"; // change if needed
 
 export default async function handler(req, res) {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
-
-  // Handle preflight OPTIONS request
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  // Only accept POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ 
-      error: 'Method not allowed',
-      message: `Expected POST, got ${req.method}`
-    });
-  }
-
+  const started = Date.now();
   try {
-    console.log('Received request body:', JSON.stringify(req.body));
-
-    // Extract request data
     const {
-      event,
-      city,
-      state,
-      country = 'USA',
-      industry,
-      naics,
-      horizon = '3mo',
-      scenario = 'base',
-      extraFactors = ''
+      event, geo, naics,
+      horizon = "medium",
+      scenario = "Base",
+      extra_factors = ""
     } = req.body || {};
 
-    console.log('Parsed params:', { event, city, industry, naics, horizon, scenario });
-
-    // Validate required fields
-    if (!event || !city || !industry) {
-      console.log('Validation failed - missing required fields');
-      return res.status(400).json({
-        error: 'Missing required fields',
-        required: ['event', 'city', 'industry'],
-        received: { event: !!event, city: !!city, industry: !!industry }
-      });
+    if (!event || !geo || !naics) {
+      return res.status(400).json({ error: "Missing required fields: event, geo, naics" });
     }
 
-    console.log('Generating forecast...');
-
-    // Generate the forecast
-    const forecast = generateForecast({
-      event,
-      city,
-      state,
-      country,
-      industry,
-      naics,
-      horizon,
-      scenario,
-      extraFactors
-    });
-
-    console.log('Forecast generated successfully');
-
-    // Return the forecast
-    return res.status(200).json(forecast);
-
-  } catch (error) {
-    console.error('Forecast error:', error);
-    console.error('Error stack:', error.stack);
-    return res.status(500).json({
-      error: 'Internal server error',
-      message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
-  }
-}
-
-// Main forecast generation function (synchronous - no await needed)
-function generateForecast(params) {
-  const {
-    event,
-    city,
-    state,
-    country,
-    industry,
-    naics,
-    horizon,
-    scenario,
-    extraFactors
-  } = params;
-
-  console.log('Analyzing event...');
-  
-  // Analyze the event to determine impact direction
-  const eventAnalysis = analyzeEvent(event, industry);
-
-  // Calculate impacts based on scenario
-  const scenarioMultiplier = {
-    'best': 0.5,
-    'base': 1.0,
-    'severe': 1.8
-  }[scenario] || 1.0;
-
-  // Generate demand impact
-  const demandShift = calculateDemandShift(eventAnalysis, scenarioMultiplier);
-  
-  // Generate cost impact
-  const costShift = calculateCostShift(eventAnalysis, scenarioMultiplier);
-  
-  // Calculate margin impact (inverse relationship)
-  const marginShift = calculateMarginShift(demandShift, costShift);
-
-  // Generate top drivers
-  const drivers = generateDrivers(event, industry, eventAnalysis);
-
-  // Calculate confidence based on data quality
-  const confidence = calculateConfidence(city, industry, naics, horizon);
-
-  const result = {
-    success: true,
-    location: `${city}${state ? ', ' + state : ''}, ${country}`,
-    industry: industry,
-    naics: naics || 'N/A',
-    horizon: horizon,
-    scenario: scenario,
-    forecast: {
-      demand: {
-        shift: demandShift,
-        direction: demandShift > 0 ? 'increase' : 'decrease',
-        magnitude: Math.abs(demandShift)
-      },
-      cost: {
-        shift: costShift,
-        direction: costShift > 0 ? 'increase' : 'decrease',
-        magnitude: Math.abs(costShift)
-      },
-      margin: {
-        shift: marginShift,
-        direction: marginShift > 0 ? 'increase' : 'decrease',
-        magnitude: Math.abs(marginShift)
+    // Try LLM if key exists; otherwise fall back to deterministic demo
+    if (OPENROUTER_KEY) {
+      try {
+        const out = await callOpenRouter({ event, geo, naics, horizon, scenario, extra_factors });
+        if (out) {
+          return res.status(200).json({
+            demand_pct: num(out.demand_pct, 0),
+            cost_pct:   num(out.cost_pct, 0),
+            margin_bps: Math.round(num(out.margin_bps, 0)),
+            drivers:    Array.isArray(out.drivers) ? out.drivers.slice(0, 6) : [],
+            confidence: clamp01(num(out.confidence, 0.6)),
+            meta: {
+              geo_canonical: canonicalize(geo),
+              naics_canonical: canonicalize(naics),
+              horizon_months: horizonMonths(horizon),
+              latency_ms: Date.now() - started,
+              source: "openrouter"
+            }
+          });
+        }
+      } catch (e) {
+        console.warn("[EcoForecast] OpenRouter error, using demo:", e?.message || e);
       }
+    }
+
+    // DEMO fallback (deterministic so you always see output)
+    const seed = djb2(`${event}|${geo}|${naics}|${horizon}|${scenario}|${extra_factors}`);
+    const rand = mulberry32(seed);
+    const scen = String(scenario || "Base").toLowerCase();
+    const scenMult = scen.includes("severe") ? 1.8 : scen.includes("best") ? 0.6 : 1.0;
+
+    const demand_pct = round1(((rand() - 0.55) * 8) * scenMult);
+    const cost_pct   = round1(((rand() - 0.45) * 5) * scenMult);
+    const margin_bps = Math.round((-(demand_pct * 8) + (cost_pct * 12)) * (0.6 + rand() * 0.5));
+    const drivers    = synthDrivers(`${event} ${extra_factors}`, rand);
+    const confidence = clamp01(0.55 + (rand() - 0.5) * 0.25);
+
+    return res.status(200).json({
+      demand_pct,
+      cost_pct,
+      margin_bps,
+      drivers,
+      confidence,
+      meta: {
+        geo_canonical: canonicalize(geo),
+        naics_canonical: canonicalize(naics),
+        horizon_months: horizonMonths(horizon),
+        latency_ms: Date.now() - started,
+        source: OPENROUTER_KEY ? "fallback-demo" : "demo"
+      }
+    });
+  } catch (err) {
+    console.error("[EcoForecast] forecast error:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+}
+
+/* ---------- OpenRouter ---------- */
+async function callOpenRouter(input) {
+  // 8s timeout so UI doesn’t hang
+  const ac = new AbortController();
+  const to = setTimeout(() => ac.abort(), 8000);
+
+  const system = `You are an economic impact forecaster. Return ONLY valid JSON:
+{
+  "demand_pct": number,
+  "cost_pct": number,
+  "margin_bps": number,
+  "drivers": [{"text": string, "tone": "good"|"bad"|"warn"}],
+  "confidence": number
+}`;
+
+  const user = `Event: ${input.event}
+Geo: ${input.geo}
+Industry/NAICS: ${input.naics}
+Horizon: ${input.horizon}
+Scenario: ${input.scenario}
+Extra factors: ${input.extra_factors || "none"}`;
+
+  const resp = await fetch(OPENROUTER_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${OPENROUTER_KEY}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://eco-forecast-ai.vercel.app",
+      "X-Title": "EcoForecast AI"
     },
-    drivers: drivers,
-    confidence: confidence,
-    timestamp: new Date().toISOString(),
-    notes: extraFactors || 'No additional factors provided'
-  };
+    body: JSON.stringify({
+      model: OPENROUTER_MODEL,
+      response_format: { type: "json_object" },
+      temperature: 0.2,
+      max_tokens: 400,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user }
+      ]
+    }),
+    signal: ac.signal
+  });
 
-  console.log('Forecast result:', JSON.stringify(result));
-  return result;
+  clearTimeout(to);
+
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => "");
+    throw new Error(`OpenRouter ${resp.status}: ${txt}`);
+  }
+
+  const data = await resp.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content || typeof content !== "string") return null;
+
+  try {
+    return JSON.parse(content);
+  } catch {
+    const m = content.match(/\{[\s\S]*\}/);
+    return m ? JSON.parse(m[0]) : null;
+  }
 }
 
-// Analyze event sentiment and impact
-function analyzeEvent(event, industry) {
-  const eventLower = event.toLowerCase();
-  
-  // Negative keywords
-  const negativeKeywords = [
-    'war', 'conflict', 'escalation', 'tariff', 'sanction', 'embargo',
-    'hurricane', 'disaster', 'pandemic', 'recession', 'crisis', 'crash',
-    'ban', 'restriction', 'shutdown', 'strike', 'riot', 'attack'
+/* ---------- helpers ---------- */
+function horizonMonths(h) { return ({ short: 3, medium: 12, long: 24 })[h] || 12; }
+function round1(n) { return Math.round(n * 10) / 10; }
+function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+function canonicalize(s) { return String(s || "").trim().replace(/\s+/g, " "); }
+function num(n, d = 0) { const v = Number(n); return Number.isFinite(v) ? v : d; }
+
+function synthDrivers(text, r) {
+  const t = String(text || "").toLowerCase();
+  const out = [];
+  const add = (msg, tone) => out.push({ text: msg, tone });
+  if (/\bwar|conflict|invasion|mobilization|sanction|blockade/.test(t)) add("Geopolitical risk elevating supply chain fragility", "bad");
+  if (/\btariff|quota|export ban|embargo/.test(t)) add("Trade barriers raising input costs", "bad");
+  if (/\bsubsidy|credit|rebate|stimulus|grant/.test(t)) add("Fiscal support boosting demand in targeted sectors", "good");
+  if (/\bhurricane|flood|wildfire|heat wave|el niño|la niña/.test(t)) add("Weather disruption affecting logistics and insurance premiums", "warn");
+  if (/\bparty|majority|house|senate|white house|regime change|coup/.test(t)) add("Political control shift altering policy trajectory", "warn");
+  if (/\bfed|rate hike|rate cut|yields|quantitative/.test(t)) add("Interest-rate path impacting capital costs and demand", "warn");
+  const pool = [
+    "Energy futures volatility spilling into transport costs",
+    "Labor market tightness pressuring wages",
+    "FX moves altering import prices",
+    "Commodity basis widening for key inputs",
+    "Port congestion risk elevating lead times"
   ];
-  
-  // Positive keywords
-  const positiveKeywords = [
-    'growth', 'expansion', 'subsidy', 'incentive', 'boom', 'recovery',
-    'innovation', 'breakthrough', 'deal', 'agreement', 'peace', 'stability'
-  ];
-
-  // Supply chain keywords
-  const supplyChainKeywords = [
-    'supply', 'shortage', 'disruption', 'logistics', 'transport', 'shipping'
-  ];
-
-  let sentiment = 0;
-  let supplyImpact = false;
-  let demandImpact = false;
-
-  negativeKeywords.forEach(keyword => {
-    if (eventLower.includes(keyword)) sentiment -= 1;
-  });
-
-  positiveKeywords.forEach(keyword => {
-    if (eventLower.includes(keyword)) sentiment += 1;
-  });
-
-  supplyChainKeywords.forEach(keyword => {
-    if (eventLower.includes(keyword)) supplyImpact = true;
-  });
-
-  // Check for demand-related terms
-  if (eventLower.includes('demand') || eventLower.includes('consumer') || 
-      eventLower.includes('spending')) {
-    demandImpact = true;
+  while (out.length < 3) {
+    const item = pool[Math.floor(r() * pool.length)];
+    const tones = ["good", "bad", "warn"];
+    add(item, tones[Math.floor(r() * tones.length)]);
   }
-
-  return {
-    sentiment,
-    supplyImpact,
-    demandImpact,
-    isNegative: sentiment < 0,
-    isPositive: sentiment > 0
-  };
+  return out.slice(0, 6);
 }
 
-// Calculate demand shift percentage
-function calculateDemandShift(analysis, multiplier) {
-  let baseShift = 0;
-
-  if (analysis.isNegative) {
-    // Negative events typically reduce demand
-    baseShift = -8 - (Math.random() * 7); // -8% to -15%
-  } else if (analysis.isPositive) {
-    // Positive events increase demand
-    baseShift = 5 + (Math.random() * 8); // +5% to +13%
-  } else {
-    // Neutral or mixed
-    baseShift = -2 + (Math.random() * 6); // -2% to +4%
-  }
-
-  // Apply demand impact modifier
-  if (analysis.demandImpact) {
-    baseShift *= 1.3;
-  }
-
-  return Math.round((baseShift * multiplier) * 10) / 10;
-}
-
-// Calculate cost shift percentage
-function calculateCostShift(analysis, multiplier) {
-  let baseShift = 0;
-
-  if (analysis.supplyImpact) {
-    // Supply chain issues increase costs
-    baseShift = 8 + (Math.random() * 12); // +8% to +20%
-  } else if (analysis.isNegative) {
-    // Negative events often increase costs
-    baseShift = 4 + (Math.random() * 8); // +4% to +12%
-  } else if (analysis.isPositive) {
-    // Positive events might reduce costs
-    baseShift = -3 + (Math.random() * 5); // -3% to +2%
-  } else {
-    baseShift = 1 + (Math.random() * 4); // +1% to +5%
-  }
-
-  return Math.round((baseShift * multiplier) * 10) / 10;
-}
-
-// Calculate margin shift (compound effect)
-function calculateMarginShift(demandShift, costShift) {
-  // Margin is squeezed when costs rise and demand falls
-  // Margin expands when demand rises and costs fall
-  const marginImpact = (demandShift * 0.6) - (costShift * 0.8);
-  return Math.round(marginImpact * 10) / 10;
-}
-
-// Generate top drivers for the forecast
-function generateDrivers(event, industry, analysis) {
-  const drivers = [];
-  
-  // Driver 1: Direct event impact
-  drivers.push({
-    factor: 'Event Impact',
-    description: `${event} directly affects ${industry} sector`,
-    weight: 35,
-    direction: analysis.isNegative ? 'negative' : 'positive'
-  });
-
-  // Driver 2: Supply chain
-  if (analysis.supplyImpact) {
-    drivers.push({
-      factor: 'Supply Chain',
-      description: 'Disruptions to supply chain and logistics',
-      weight: 25,
-      direction: 'negative'
-    });
-  } else {
-    drivers.push({
-      factor: 'Market Conditions',
-      description: 'Current market dynamics and competition',
-      weight: 25,
-      direction: 'neutral'
-    });
-  }
-
-  // Driver 3: Consumer behavior
-  drivers.push({
-    factor: 'Consumer Behavior',
-    description: analysis.demandImpact ? 
-      'Changing consumer spending patterns' : 
-      'Stable consumer preferences',
-    weight: 20,
-    direction: analysis.demandImpact ? 'negative' : 'neutral'
-  });
-
-  // Driver 4: Regional factors
-  drivers.push({
-    factor: 'Local Economic Conditions',
-    description: 'Regional employment and income levels',
-    weight: 12,
-    direction: 'neutral'
-  });
-
-  // Driver 5: Policy environment
-  drivers.push({
-    factor: 'Policy Environment',
-    description: 'Regulatory and government support',
-    weight: 8,
-    direction: analysis.isPositive ? 'positive' : 'neutral'
-  });
-
-  return drivers;
-}
-
-// Calculate confidence score
-function calculateConfidence(city, industry, naics, horizon) {
-  let confidence = 75; // Base confidence
-
-  // NAICS code adds confidence (more specific data)
-  if (naics && naics !== 'N/A') {
-    confidence += 8;
-  }
-
-  // Shorter horizons are more confident
-  if (horizon === '1mo') {
-    confidence += 7;
-  } else if (horizon === '3mo') {
-    confidence += 3;
-  } else if (horizon === '12mo') {
-    confidence -= 5;
-  }
-
-  // Major cities have more data
-  const majorCities = ['new york', 'los angeles', 'chicago', 'houston', 'phoenix', 
-                       'philadelphia', 'san antonio', 'san diego', 'dallas', 'san jose'];
-  if (majorCities.some(mc => city.toLowerCase().includes(mc))) {
-    confidence += 5;
-  }
-
-  // Cap confidence between 60-95
-  confidence = Math.max(60, Math.min(95, confidence));
-
-  return `${confidence}%`;
-}
+function djb2(str) { let h = 5381; for (let i = 0; i < str.length; i++) h = ((h << 5) + h) + str.charCodeAt(i); return h >>> 0; }
+function mulberry32(a) { return function(){ let t=a+=0x6D2B79F5; t=Math.imul(t^(t>>>15), t|1); t^=t+Math.imul(t^(t>>>7), t|61); return ((t^(t>>>14))>>>0)/4294967295; }; }
