@@ -234,11 +234,8 @@
                 <li class="strike">Scenario Studio</li>
               </ul>
               <div class="nofa-cta">
-                <!-- Contact Sales (Get Started) -->
-                <a href="mailto:info@nofabusinessconsulting.com?subject=EcoForecast%20AI%20-%20Start%20Business%20Insight%20(beta)&body=Hi%20NOFA%20Team%2C%0A%0AWe%27d%20like%20to%20start%20the%20Business%20Insight%20plan.%0ACompany%3A%20%0ACity%2FRegion%3A%20%0AIndustry%20(NAICS)%3A%20%0AUse%20cases%3A%20%0ATimeline%3A%20%0A%0AThanks!"
-                   aria-label="Start Business Insight (beta)" target="_blank" rel="noopener">Get Started (Beta)</a>
-                <a class="secondary" href="mailto:info@nofabusinessconsulting.com?subject=EcoForecast%20AI%20-%20Book%20a%20Demo&body=Hi%2C%20please%20book%20me%20for%20a%20demo.%0ACompany%3A%20%0APreferred%20time%20zones%2Fslots%3A%20"
-                   aria-label="Book a demo" target="_blank" rel="noopener">Book a Demo</a>
+                <a href="#" onclick="return sendEmail('info@nofabusinessconsulting.com','EcoForecast AI — Start Business Insight (beta)', T_BIZ);" aria-label="Start Business Insight (beta)">Get Started (Beta)</a>
+                <a class="secondary" href="#" onclick="return sendEmail('info@nofabusinessconsulting.com','EcoForecast AI — Book a Demo', T_DEMO);" aria-label="Book a demo">Book a Demo</a>
                 <a class="secondary" href="#" onclick="copyEmail('info@nofabusinessconsulting.com'); return false;" aria-label="Copy email address">Copy Email</a>
               </div>
             </article>
@@ -261,8 +258,7 @@
                 <li>City & NAICS localization</li>
               </ul>
               <div class="nofa-cta">
-                <a class="secondary" href="mailto:waitlist_ai@nofabusinessconsulting.com?subject=Join%20Waitlist%20-%20Analyst%20Pro%20(%20Please%20specify%20AI%20solution%20)%20&body=Hi%20NOFA%20Team%2C%0A%0APlease%20add%20me%20to%20the%20waitlist.%0AInterested%20AI%20solution%3A%20EcoForecast%20AI%20%2F%20GovFlow%20AI%20%2F%20Other%20(%20please%20specify%20)%0ACompany%3A%20%0ARole%3A%20%0ACity%2FRegion%3A%20%0AUse%20cases%3A%20%0ATimeline%3A%20"
-                   aria-label="Join waitlist for Analyst Pro" target="_blank" rel="noopener">Join Waitlist</a>
+                <a class="secondary" href="#" onclick="return sendEmail('waitlist_ai@nofabusinessconsulting.com','Join Waitlist — Analyst Pro (please specify AI solution)', T_WAITLIST_ANALYST);" aria-label="Join waitlist for Analyst Pro">Join Waitlist</a>
                 <a class="secondary" href="#" onclick="copyEmail('waitlist_ai@nofabusinessconsulting.com'); return false;" aria-label="Copy waitlist email">Copy Email</a>
                 <a class="cta-disabled" aria-disabled="true" tabindex="-1" href="#" title="Purchasing opens when Analyst Pro launches">Purchase (Soon)</a>
               </div>
@@ -286,10 +282,8 @@
                 <li>Priority support</li>
               </ul>
               <div class="nofa-cta">
-                <a href="mailto:info@nofabusinessconsulting.com?subject=EcoForecast%20AI%20-%20Enterprise%20Pilot&body=Hi%20NOFA%20Team%2C%0A%0AWe%27re%20interested%20in%20an%20Enterprise%20pilot.%0AInterested%20AI%20solution%3A%20EcoForecast%20AI%20%2F%20GovFlow%20AI%20%2F%20Other%20(%20please%20specify%20)%0ACompany%3A%20%0AUse%20cases%3A%20%0AIntegrations%20(%20BI%2C%20API%2C%20data%20sources%20)%3A%20%0ATimeline%3A%20"
-                   aria-label="Contact sales for Enterprise pilot" target="_blank" rel="noopener">Contact Sales</a>
-                <a class="secondary" href="mailto:waitlist_ai@nofabusinessconsulting.com?subject=Join%20Waitlist%20-%20Enterprise%20(%20Please%20specify%20AI%20solution%20)%20&body=Hi%20NOFA%20Team%2C%0A%0APlease%20add%20us%20to%20the%20Enterprise%20waitlist.%0AInterested%20AI%20solution%3A%20EcoForecast%20AI%20%2F%20GovFlow%20AI%20%2F%20Other%20(%20please%20specify%20)%0ACompany%3A%20%0ARole%3A%20%0ACity%2FRegion%3A%20%0AUse%20cases%3A%20%0ATimeline%3A%20"
-                   aria-label="Join Enterprise waitlist" target="_blank" rel="noopener">Join Waitlist</a>
+                <a href="#" onclick="return sendEmail('info@nofabusinessconsulting.com','EcoForecast AI — Enterprise Pilot', T_ENTERPRISE);" aria-label="Contact sales for Enterprise pilot">Contact Sales</a>
+                <a class="secondary" href="#" onclick="return sendEmail('waitlist_ai@nofabusinessconsulting.com','Join Waitlist — Enterprise (please specify AI solution)', T_WAITLIST_ANALYST);" aria-label="Join Enterprise waitlist">Join Waitlist</a>
                 <a class="secondary" href="#" onclick="copyEmail('waitlist_ai@nofabusinessconsulting.com'); return false;" aria-label="Copy waitlist email">Copy Email</a>
               </div>
             </article>
@@ -303,8 +297,19 @@
     © EcoForecast AI™ • Part of the GovFlow AI™ family • For demo use only — not investment advice.
   </footer>
 
-  <!-- Helper: Copy-to-clipboard for mailto fallback -->
+  <!-- Email helpers (robust across Outlook/Apple Mail/Gmail) -->
   <script>
+    function sendEmail(address, subject, template) {
+      if (template) {
+        (navigator.clipboard?.writeText(template).then(()=>{}).catch(()=>{}));
+      }
+      const s = encodeURIComponent(subject || '');
+      window.location.href = `mailto:${address}?subject=${s}`;
+      setTimeout(() => {
+        if (template) alert('Email template copied to clipboard.\nIf your mail app shows an empty body, press Ctrl+V to paste it.');
+      }, 300);
+      return false;
+    }
     function copyEmail(email) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(email)
@@ -321,13 +326,61 @@
       document.body.removeChild(ta);
       alert(`Email copied: ${text}`);
     }
+
+    /* Prefilled templates */
+    const T_BIZ = [
+      'Hi NOFA Team,',
+      '',
+      'We would like to start the Business Insight plan (EcoForecast AI).',
+      'Company:',
+      'City/Region:',
+      'Industry (NAICS):',
+      'Use cases:',
+      'Timeline:',
+      '',
+      'Thanks!'
+    ].join('\n');
+
+    const T_DEMO = [
+      'Hi NOFA Team,',
+      '',
+      'Please book me for a demo of EcoForecast AI.',
+      'Company:',
+      'Preferred time zones/slots:',
+      ''
+    ].join('\n');
+
+    const T_WAITLIST_ANALYST = [
+      'Hi NOFA Team,',
+      '',
+      'Please add me to the waitlist.',
+      'Interested AI solution: EcoForecast AI / GovFlow AI / Other (please specify)',
+      'Company:',
+      'Role:',
+      'City/Region:',
+      'Use cases:',
+      'Timeline:',
+      ''
+    ].join('\n');
+
+    const T_ENTERPRISE = [
+      'Hi NOFA Team,',
+      '',
+      'We’re interested in an Enterprise pilot.',
+      'Interested AI solution: EcoForecast AI / GovFlow AI / Other (please specify)',
+      'Company:',
+      'Use cases:',
+      'Integrations (BI, API, data sources):',
+      'Timeline:',
+      ''
+    ].join('\n');
   </script>
 
+  <!-- App logic -->
   <script>
-    // Utility
     const $ = id => document.getElementById(id);
 
-    // Preset chips (local map)
+    /* Preset chips */
     const presetsMap = {
       war_escalation: "A regional conflict escalates with partial blockade of a key shipping lane; insurance premia rise; export controls expand.",
       tariff_steel: "U.S. imposes a 10% tariff on steel imports effective in 60 days; exemptions uncertain; domestic mills signal capacity strain.",
@@ -342,7 +395,7 @@
       });
     });
 
-    // NAICS helper
+    /* NAICS helper */
     $('naics').addEventListener('input', (e)=>{
       const t = e.target.value.toLowerCase();
       if (/^\d{4}/.test(t)) return;
@@ -357,7 +410,7 @@
       if (hit) e.target.value = hit.v;
     });
 
-    // Forecast runner
+    /* Forecast runner */
     const runBtn = $('run'), statusEl = $('status');
     runBtn.addEventListener('click', async () => {
       statusEl.textContent = 'Running forecast…';
@@ -434,7 +487,6 @@
 
       $('conf').textContent = 'Confidence: ' + Math.round((data?.confidence||0)*100) + '%';
 
-      // Show result source badge if available
       const src = data?.meta?.source;
       if (src) {
         const badge = $('sourceBadge');
@@ -452,7 +504,7 @@
       return sign + Number(x).toFixed(1) + '%';
     }
 
-    // Pricing monthly/annual toggle
+    /* Pricing monthly/annual toggle */
     (function(){
       const toggle = document.getElementById('billing');
       const amounts = document.querySelectorAll('.nofa-price .amt');
