@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -38,15 +37,17 @@
     .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
     .kpi .v{font-size:22px;font-weight:700}
     .kpi .u{font-size:12px;color:var(--muted)}
+    .drivers{list-style:none;padding:0;margin:0}
     .drivers li{margin:6px 0}
     .good{color:var(--good)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+    .src-badge{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--edge);border-radius:999px;padding:4px 10px;font-size:11px;color:var(--muted);margin-top:10px}
 
     /* Pricing */
     .pricing{margin-top:32px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
     .card{background:var(--card);border:1px solid var(--edge);border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 
-    /* Pricing table block (namespaced) */
+    /* Pricing table */
     .nofa-pricing{background:linear-gradient(180deg,#0b1020,#0a0f1c);color:var(--text);padding:8px 0}
     .nofa-wrap{max-width:1100px;margin:0 auto}
     .nofa-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
@@ -62,13 +63,22 @@
     .nofa-cta a{display:inline-block;text-align:center;text-decoration:none;color:white;font-weight:700;padding:12px 14px;border-radius:12px;border:1px solid #32407a;background:linear-gradient(180deg,#2741b3,#1f2d80)}
     .nofa-cta a.secondary{background:#0f1630}
     .nofa-features{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:8px;font-size:14px}
-    .nofa-features li{display:flex;gap:8px;align-items:flex-start}
     .strike{color:var(--muted);text-decoration:line-through}
     .save-tag{font-size:11px;color:var(--good);border:1px solid rgba(53,199,89,.35);border-radius:999px;padding:2px 8px;margin-left:6px}
     .toggleRow{display:flex;align-items:center;gap:10px;margin:10px 0 20px;color:var(--muted);font-size:13px}
     .switch{position:relative;width:48px;height:26px;background:#0f1630;border:1px solid var(--edge);border-radius:999px;cursor:pointer}
     .switch i{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--accent);transition:transform .2s}
     input#billing:checked + .switch i{transform:translateX(22px)}
+
+    .badge-available, .badge-soon {
+      display:inline-flex; align-items:center; gap:6px;
+      font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--edge);
+    }
+    .badge-available { color: var(--good); border-color: rgba(53,199,89,.5); }
+    .badge-soon { color: var(--warn); border-color: rgba(255,214,10,.45); }
+    .avail.live { color: var(--good); }
+    .avail.soon { color: var(--warn); }
+    .cta-disabled { opacity:.6; cursor:not-allowed; }
 
     @media (max-width:980px){
       .hero{grid-template-columns:1fr}
@@ -96,6 +106,7 @@
 
   <main class="wrap" id="forecast">
     <section class="hero">
+      <!-- Left: Form -->
       <section class="hero-card" aria-labelledby="form-title">
         <h2 id="form-title">Forecast an Impact</h2>
         <p class="pill">Step 1 · Describe the event or paste a bill / EO summary</p>
@@ -165,6 +176,7 @@
         </div>
       </section>
 
+      <!-- Right: Results -->
       <section class="hero-card" aria-labelledby="results-title">
         <h2 id="results-title">Results</h2>
         <div id="results" style="min-height:260px">
@@ -177,6 +189,7 @@
           <h3 style="margin:14px 0 6px">Top Drivers</h3>
           <ul id="drivers" class="drivers"></ul>
           <p id="conf" class="u" style="margin-top:8px"></p>
+          <div id="sourceBadge" class="src-badge" style="display:none"></div>
         </div>
       </section>
     </section>
@@ -187,20 +200,33 @@
       <section class="nofa-pricing" aria-labelledby="pricing-h">
         <div class="nofa-wrap">
           <h3 id="pricing-h" class="nofa-sub" style="margin:0 0 8px">EcoForecast AI™ Plans</h3>
+
+          <!-- Availability note -->
+          <p class="nofa-sub" style="margin:6px 0 14px">
+            <strong>Note:</strong> We’re in <em>Demo+</em>. <span class="avail live">Business Insight is available now</span>.
+            <span class="avail soon">Analyst Pro</span> and <span class="avail soon">Enterprise</span> are coming soon.
+          </p>
+
+          <!-- Monthly/Annual toggle -->
           <label class="toggleRow" for="billing">
             <span>Bill monthly</span>
             <input id="billing" type="checkbox" hidden>
             <span class="switch" aria-hidden="true"><i></i></span>
             <span>Bill annually <span class="save-tag">save ~15% + setup waivers*</span></span>
           </label>
+
           <div class="nofa-grid" role="list">
-            <!-- Insight (SMB) -->
+            <!-- Business Insight (Available Now) -->
             <article class="nofa-card" role="listitem" aria-label="Business Insight plan">
               <span class="nofa-badge">EcoForecast AI™</span>
               <h4 class="nofa-title">Business Insight</h4>
               <p class="nofa-sub">Localized forecasts for SMBs (city + industry).</p>
-              <div class="nofa-price"><span class="amt" data-month="$197/mo" data-annual="$167/mo">$197/mo</span><span class="unit">USD</span></div>
+              <div class="nofa-price">
+                <span class="amt" data-month="$197/mo" data-annual="$167/mo">$197/mo</span>
+                <span class="unit">USD</span>
+              </div>
               <div class="nofa-setup">Setup: <strong>Optional $250</strong> (waived on annual)</div>
+              <p><span class="badge-available">Available Now</span></p>
               <ul class="nofa-features">
                 <li>10 forecasts/month</li>
                 <li>Drivers & confidence</li>
@@ -208,18 +234,24 @@
                 <li class="strike">Scenario Studio</li>
               </ul>
               <div class="nofa-cta">
-                <a href="#start-insight" aria-label="Start Business Insight">Start Insight</a>
-                <a class="secondary" href="#book-demo" aria-label="Book a demo">Book a Demo</a>
+                <a href="mailto:hello@nofa.consulting?subject=EcoForecast%20AI%20-%20Start%20Business%20Insight%20(beta)&body=Hi%20EcoForecast%20Team%2C%0A%0AI%27d%20like%20to%20start%20the%20Business%20Insight%20plan.%0ACompany%3A%20%0ACity%2FRegion%3A%20%0AIndustry%20(NAICS)%3A%20%0A%0AThanks!"
+                   aria-label="Start Business Insight (beta)">Get Started (Beta)</a>
+                <a class="secondary" href="mailto:hello@nofa.consulting?subject=EcoForecast%20AI%20-%20Book%20a%20Demo&body=Hi%2C%20please%20book%20me%20for%20a%20demo."
+                   aria-label="Book a demo">Book a Demo</a>
               </div>
             </article>
 
-            <!-- Analyst Pro -->
+            <!-- Analyst Pro (Coming Soon) -->
             <article class="nofa-card" role="listitem" aria-label="Analyst Pro plan">
               <span class="nofa-badge">EcoForecast AI™</span>
               <h4 class="nofa-title">Analyst Pro</h4>
               <p class="nofa-sub">Quantified city & industry forecasts with scenarios.</p>
-              <div class="nofa-price"><span class="amt" data-month="$697/mo" data-annual="$592/mo">$697/mo</span><span class="unit">USD</span></div>
+              <div class="nofa-price">
+                <span class="amt" data-month="$697/mo" data-annual="$592/mo">$697/mo</span>
+                <span class="unit">USD</span>
+              </div>
               <div class="nofa-setup">Setup: <strong>$1,000</strong> (local datasets + calibration)</div>
+              <p><span class="badge-soon">Coming Soon</span></p>
               <ul class="nofa-features">
                 <li>Unlimited forecasts</li>
                 <li>Scenario Studio (best/base/severe)</li>
@@ -227,18 +259,23 @@
                 <li>City & NAICS localization</li>
               </ul>
               <div class="nofa-cta">
-                <a href="#start-pro" aria-label="Start Analyst Pro">Start Analyst Pro</a>
-                <a class="secondary" href="#book-demo" aria-label="Book a demo">Book a Demo</a>
+                <a class="secondary" href="mailto:hello@nofa.consulting?subject=EcoForecast%20AI%20-%20Analyst%20Pro%20Waitlist&body=Hi%2C%20please%20add%20me%20to%20the%20Analyst%20Pro%20waitlist."
+                   aria-label="Join waitlist for Analyst Pro">Join Waitlist</a>
+                <a class="cta-disabled" aria-disabled="true" tabindex="-1" href="#" title="Purchasing opens when Analyst Pro launches">Purchase (Soon)</a>
               </div>
             </article>
 
-            <!-- Enterprise -->
+            <!-- Enterprise (Pilot / Coming Soon) -->
             <article class="nofa-card" role="listitem" aria-label="Enterprise plan">
               <span class="nofa-badge">EcoForecast AI™</span>
               <h4 class="nofa-title">Enterprise / Investor</h4>
               <p class="nofa-sub">Custom models, API & BI integrations, white-glove onboarding.</p>
-              <div class="nofa-price"><span class="amt" data-month="$5,000+/mo" data-annual="$4,250+/mo">$5,000+/mo</span><span class="unit">USD</span></div>
+              <div class="nofa-price">
+                <span class="amt" data-month="$5,000+/mo" data-annual="$4,250+/mo">$5,000+/mo</span>
+                <span class="unit">USD</span>
+              </div>
               <div class="nofa-setup">Setup: <strong>$10,000</strong> (scope-dependent)</div>
+              <p><span class="badge-soon">Pilot / Coming Soon</span></p>
               <ul class="nofa-features">
                 <li>Custom model tuning</li>
                 <li>API & data pipelines</li>
@@ -246,8 +283,10 @@
                 <li>Priority support</li>
               </ul>
               <div class="nofa-cta">
-                <a href="#contact-sales" aria-label="Contact sales">Contact Sales</a>
-                <a class="secondary" href="#book-enterprise" aria-label="Book enterprise consult">Book a Consult</a>
+                <a href="mailto:hello@nofa.consulting?subject=EcoForecast%20AI%20-%20Enterprise%20Pilot&body=Hi%2C%20we%27re%20interested%20in%20an%20Enterprise%20pilot.%20Details%3A%0ACompany%3A%0AUse%20cases%3A%0ATimeline%3A"
+                   aria-label="Contact sales for Enterprise pilot">Contact Sales</a>
+                <a class="secondary" href="mailto:hello@nofa.consulting?subject=EcoForecast%20AI%20-%20Enterprise%20Waitlist&body=Please%20add%20us%20to%20the%20Enterprise%20waitlist."
+                   aria-label="Join Enterprise waitlist">Join Waitlist</a>
               </div>
             </article>
           </div>
@@ -261,10 +300,10 @@
   </footer>
 
   <script>
-    // Utility selectors
+    // Utility
     const $ = id => document.getElementById(id);
 
-    // Preset chips → fetch /api/scenario for text templates
+    // Preset chips (local map to avoid extra network calls)
     const presetsMap = {
       war_escalation: "A regional conflict escalates with partial blockade of a key shipping lane; insurance premia rise; export controls expand.",
       tariff_steel: "U.S. imposes a 10% tariff on steel imports effective in 60 days; exemptions uncertain; domestic mills signal capacity strain.",
@@ -279,28 +318,27 @@
       });
     });
 
-    // Simple NAICS keyword → code helper (client-side demo)
-    const naicsMap = [
-      {k: ['restaurant','food service','dining'], v: '7225 — Restaurants'},
-      {k: ['homebuilding','residential build','construction'], v: '2361 — Residential Building Construction'},
-      {k: ['steel','metal','mill'], v: '3311 — Iron & Steel Mills'},
-      {k: ['physician','clinic','doctor'], v: '6211 — Offices of Physicians'},
-      {k: ['aerospace','aircraft'], v: '3364 — Aerospace Product & Parts'}
-    ];
+    // Light NAICS helper
     $('naics').addEventListener('input', (e)=>{
       const t = e.target.value.toLowerCase();
-      if (/^\d{4}/.test(t)) return; // already a code
-      const hit = naicsMap.find(x=>x.k.some(w=>t.includes(w)));
+      if (/^\d{4}/.test(t)) return;
+      const map = [
+        {k:['restaurant','food service','dining'], v:'7225 — Restaurants'},
+        {k:['homebuilding','residential build','construction'], v:'2361 — Residential Building Construction'},
+        {k:['steel','metal','mill'], v:'3311 — Iron & Steel Mills'},
+        {k:['physician','clinic','doctor'], v:'6211 — Offices of Physicians'},
+        {k:['aerospace','aircraft'], v:'3364 — Aerospace Product & Parts'}
+      ];
+      const hit = map.find(x=>x.k.some(w=>t.includes(w)));
       if (hit) e.target.value = hit.v;
     });
 
-    // Run Forecast
+    // Forecast runner
     const runBtn = $('run'), statusEl = $('status');
     runBtn.addEventListener('click', async () => {
       statusEl.textContent = 'Running forecast…';
       runBtn.disabled = true;
 
-      // Normalize NAICS field (strip label if present)
       const naicsRaw = $('naics').value.trim();
       const naics = naicsRaw.match(/^\d{4}/)?.[0] || naicsRaw;
 
@@ -313,34 +351,30 @@
         extra_factors: $('factors').value.trim()
       };
 
+      if (!payload.event || !payload.geo || !payload.naics) {
+        statusEl.textContent = 'Please fill Event, City/Region, and Industry.';
+        runBtn.disabled = false;
+        return;
+      }
+
       try {
         const res = await fetch('/api/forecast', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        if (!res.ok) throw new Error('API error');
+
+        if (!res.ok) {
+          const txt = await res.text().catch(()=> '');
+          throw new Error(`API ${res.status}: ${txt || 'Request failed'}`);
+        }
+
         const data = await res.json();
-
-        $('kpiDemand').textContent = fmtPct(data.demand_pct);
-        $('kpiCosts').textContent  = fmtPct(data.cost_pct);
-        $('kpiMargin').textContent = (data.margin_bps>0?'+':'') + data.margin_bps + ' bps';
-
-        const drivers = $('drivers');
-        drivers.innerHTML = '';
-        (data.drivers || []).slice(0,6).forEach(d => {
-          const li = document.createElement('li');
-          li.textContent = '• ' + d.text;
-          if (d.tone === 'good') li.className = 'good';
-          if (d.tone === 'bad')  li.className = 'bad';
-          if (d.tone === 'warn') li.className = 'warn';
-          drivers.appendChild(li);
-        });
-
-        $('conf').textContent = 'Confidence: ' + Math.round((data.confidence||0)*100) + '%';
+        renderForecast(data);
         statusEl.textContent = 'Done.';
       } catch (e) {
-        statusEl.textContent = 'Something went wrong. Try again.';
+        console.error(e);
+        statusEl.textContent = e.message || 'Something went wrong.';
       } finally {
         runBtn.disabled = false;
       }
@@ -354,8 +388,45 @@
       $('drivers').innerHTML = '';
       $('conf').textContent = '';
       $('status').textContent = '';
+      $('sourceBadge').style.display = 'none';
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
+
+    function renderForecast(data){
+      $('kpiDemand').textContent = fmtPct(data?.demand_pct);
+      $('kpiCosts').textContent  = fmtPct(data?.cost_pct);
+      $('kpiMargin').textContent = (Number(data?.margin_bps) >= 0 ? '+' : '') + (data?.margin_bps ?? '0') + ' bps';
+
+      const drivers = $('drivers');
+      drivers.innerHTML = '';
+      (data?.drivers || []).slice(0,6).forEach(d => {
+        const li = document.createElement('li');
+        li.textContent = '• ' + d.text;
+        if (d.tone === 'good') li.className = 'good';
+        if (d.tone === 'bad')  li.className = 'bad';
+        if (d.tone === 'warn') li.className = 'warn';
+        drivers.appendChild(li);
+      });
+
+      $('conf').textContent = 'Confidence: ' + Math.round((data?.confidence||0)*100) + '%';
+
+      // Show result source badge if available
+      const src = data?.meta?.source;
+      if (src) {
+        const badge = $('sourceBadge');
+        const label = src === 'openrouter' ? 'AI forecast (OpenRouter)' :
+                      src === 'fallback-demo' ? 'Demo forecast (fallback)' :
+                      String(src);
+        badge.textContent = label;
+        badge.style.display = 'inline-flex';
+      }
+    }
+
+    function fmtPct(x){
+      if (x===undefined || x===null || isNaN(x)) return '—';
+      const sign = x>0?'+':'';
+      return sign + Number(x).toFixed(1) + '%';
+    }
 
     // Pricing monthly/annual toggle
     (function(){
@@ -372,12 +443,6 @@
       toggle.addEventListener('change', setMode);
       setMode();
     })();
-
-    function fmtPct(x){
-      if (x===undefined || x===null || isNaN(x)) return '—';
-      const sign = x>0?'+':'';
-      return sign + Number(x).toFixed(1) + '%';
-    }
   </script>
 </body>
 </html>
