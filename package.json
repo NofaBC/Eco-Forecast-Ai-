@@ -1,0 +1,9 @@
+{
+  "name": "eco-forecast-ai",
+  "private": true,
+  "version": "1.0.0",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "firebase-admin": "^12.5.0"
+  }
+}
