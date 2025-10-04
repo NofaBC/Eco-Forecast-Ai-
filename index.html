@@ -9,7 +9,7 @@
     :root { --bg:#0b1020; --card:#121a35; --edge:#1c254b; --text:#e8ecff; --muted:#aab3d9; --accent:#6ea8fe; --good:#35c759; --bad:#ff453a; --warn:#ffd60a; }
     *{box-sizing:border-box}
     body{margin:0;font-family:Inter,system-ui,Segoe UI,Arial;background:linear-gradient(180deg,#0b1020,#0a0f1c);color:var(--text)}
-    a{color:var(--accent)}
+    a{color:var(--accent); text-decoration:none}
     header{padding:28px 20px;border-bottom:1px solid var(--edge);background:rgba(10,15,28,.6);backdrop-filter:saturate(1.2) blur(8px);position:sticky;top:0;z-index:20}
     .wrap{max-width:1080px;margin:0 auto}
     .flex{display:flex;gap:14px;align-items:center;justify-content:space-between}
@@ -60,7 +60,7 @@
     .nofa-price .unit{font-size:13px;color:var(--muted)}
     .nofa-setup{font-size:12px;color:var(--warn);margin:-4px 0 10px}
     .nofa-cta{margin-top:auto;display:flex;flex-direction:column;gap:10px}
-    .nofa-cta a{display:inline-block;text-align:center;text-decoration:none;color:white;font-weight:700;padding:12px 14px;border-radius:12px;border:1px solid #32407a;background:linear-gradient(180deg,#2741b3,#1f2d80)}
+    .nofa-cta a{display:inline-block;text-align:center;color:white;font-weight:700;padding:12px 14px;border-radius:12px;border:1px solid #32407a;background:linear-gradient(180deg,#2741b3,#1f2d80)}
     .nofa-cta a.secondary{background:#0f1630}
     .nofa-features{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:8px;font-size:14px}
     .strike{color:var(--muted);text-decoration:line-through}
@@ -80,12 +80,32 @@
     .avail.soon { color: var(--warn); }
     .cta-disabled { opacity:.6; cursor:not-allowed; }
 
+    /* Account dropdown */
+    .account{position:relative; display:inline-block}
+    .account-btn{cursor:pointer; padding:8px 10px; border:1px solid var(--edge); border-radius:10px; color:var(--text); background:#0f1630;}
+    .account-menu{position:absolute; right:0; top:42px; min-width:220px; display:none; background:var(--card); border:1px solid var(--edge); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.35); padding:6px}
+    .account-menu.open{display:block}
+    .account-menu a, .account-menu button{display:block; width:100%; text-align:left; background:transparent; border:0; color:var(--text); padding:10px 12px; border-radius:8px; cursor:pointer}
+    .account-menu a:hover, .account-menu button:hover{background:#0f1630}
+
+    /* History modal */
+    .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.5); z-index:50}
+    .modal.open{display:flex}
+    .modal-card{width:min(720px,92vw); max-height:80vh; overflow:auto; background:var(--card); border:1px solid var(--edge); border-radius:16px; padding:16px}
+    .modal-card h3{margin:0 0 8px}
+    .hist-item{padding:10px 0; border-bottom:1px dashed #27315f; font-size:14px}
+    .hist-item:last-child{border-bottom:none}
+
     @media (max-width:980px){
       .hero{grid-template-columns:1fr}
       .grid{grid-template-columns:1fr}
       .nofa-grid{grid-template-columns:1fr}
     }
   </style>
+
+  <!-- Firebase (compat builds) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 </head>
 <body>
   <header>
@@ -99,6 +119,14 @@
           <a href="#forecast">Forecast</a>
           &nbsp;·&nbsp;
           <a href="#pricing">Pricing</a>
+          &nbsp;·&nbsp;
+          <!-- Account -->
+          <span class="account">
+            <button id="accountBtn" class="account-btn">Sign In</button>
+            <div id="accountMenu" class="account-menu" role="menu" aria-label="Account menu">
+              <!-- Populated by JS depending on auth state -->
+            </div>
+          </span>
         </nav>
       </div>
     </div>
@@ -201,13 +229,11 @@
         <div class="nofa-wrap">
           <h3 id="pricing-h" class="nofa-sub" style="margin:0 0 8px">EcoForecast AI™ Plans</h3>
 
-          <!-- Availability note -->
           <p class="nofa-sub" style="margin:6px 0 14px">
             <strong>Note:</strong> We’re in <em>Demo+</em>. <span class="avail live">Business Insight is available now</span>.
             <span class="avail soon">Analyst Pro</span> and <span class="avail soon">Enterprise</span> are coming soon.
           </p>
 
-          <!-- Monthly/Annual toggle -->
           <label class="toggleRow" for="billing">
             <span>Bill monthly</span>
             <input id="billing" type="checkbox" hidden>
@@ -216,15 +242,12 @@
           </label>
 
           <div class="nofa-grid" role="list">
-            <!-- Business Insight (Available Now) -->
+            <!-- Business Insight -->
             <article class="nofa-card" role="listitem" aria-label="Business Insight plan">
               <span class="nofa-badge">EcoForecast AI™</span>
               <h4 class="nofa-title">Business Insight</h4>
               <p class="nofa-sub">Localized forecasts for SMBs (city + industry).</p>
-              <div class="nofa-price">
-                <span class="amt" data-month="$197/mo" data-annual="$167/mo">$197/mo</span>
-                <span class="unit">USD</span>
-              </div>
+              <div class="nofa-price"><span class="amt" data-month="$197/mo" data-annual="$167/mo">$197/mo</span><span class="unit">USD</span></div>
               <div class="nofa-setup">Setup: <strong>Optional $250</strong> (waived on annual)</div>
               <p><span class="badge-available">Available Now</span></p>
               <ul class="nofa-features">
@@ -240,15 +263,12 @@
               </div>
             </article>
 
-            <!-- Analyst Pro (Join Waitlist) -->
+            <!-- Analyst Pro -->
             <article class="nofa-card" role="listitem" aria-label="Analyst Pro plan">
               <span class="nofa-badge">EcoForecast AI™</span>
               <h4 class="nofa-title">Analyst Pro</h4>
               <p class="nofa-sub">Quantified city & industry forecasts with scenarios.</p>
-              <div class="nofa-price">
-                <span class="amt" data-month="$697/mo" data-annual="$592/mo">$697/mo</span>
-                <span class="unit">USD</span>
-              </div>
+              <div class="nofa-price"><span class="amt" data-month="$697/mo" data-annual="$592/mo">$697/mo</span><span class="unit">USD</span></div>
               <div class="nofa-setup">Setup: <strong>$1,000</strong> (local datasets + calibration)</div>
               <p><span class="badge-soon">Coming Soon</span></p>
               <ul class="nofa-features">
@@ -264,15 +284,12 @@
               </div>
             </article>
 
-            <!-- Enterprise (Pilot / Coming Soon) -->
+            <!-- Enterprise -->
             <article class="nofa-card" role="listitem" aria-label="Enterprise plan">
               <span class="nofa-badge">EcoForecast AI™</span>
               <h4 class="nofa-title">Enterprise / Investor</h4>
               <p class="nofa-sub">Custom models, API & BI integrations, white-glove onboarding.</p>
-              <div class="nofa-price">
-                <span class="amt" data-month="$5,000+/mo" data-annual="$4,250+/mo">$5,000+/mo</span>
-                <span class="unit">USD</span>
-              </div>
+              <div class="nofa-price"><span class="amt" data-month="$5,000+/mo" data-annual="$4,250+/mo">$5,000+/mo</span><span class="unit">USD</span></div>
               <div class="nofa-setup">Setup: <strong>$10,000</strong> (scope-dependent)</div>
               <p><span class="badge-soon">Pilot / Coming Soon</span></p>
               <ul class="nofa-features">
@@ -297,90 +314,134 @@
     © EcoForecast AI™ • Part of the GovFlow AI™ family • For demo use only — not investment advice.
   </footer>
 
-  <!-- Email helpers (robust across Outlook/Apple Mail/Gmail) -->
+  <!-- History modal -->
+  <div id="histModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="histTitle">
+    <div class="modal-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <h3 id="histTitle">My Forecast History</h3>
+        <button id="histClose" class="account-btn" style="padding:6px 10px">Close</button>
+      </div>
+      <div id="histBody"></div>
+    </div>
+  </div>
+
+  <!-- Email helpers -->
   <script>
     function sendEmail(address, subject, template) {
-      if (template) {
-        (navigator.clipboard?.writeText(template).then(()=>{}).catch(()=>{}));
-      }
+      if (template) { (navigator.clipboard?.writeText(template).catch(()=>{})); }
       const s = encodeURIComponent(subject || '');
       window.location.href = `mailto:${address}?subject=${s}`;
-      setTimeout(() => {
-        if (template) alert('Email template copied to clipboard.\nIf your mail app shows an empty body, press Ctrl+V to paste it.');
-      }, 300);
+      if (template) setTimeout(()=>alert('Template copied. If your mail body is empty, press Ctrl+V to paste.'), 300);
       return false;
     }
     function copyEmail(email) {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(email)
-          .then(() => alert(`Email copied: ${email}`))
-          .catch(() => legacyCopy(email));
-      } else {
-        legacyCopy(email);
-      }
+      (navigator.clipboard?.writeText(email).then(()=>alert(`Email copied: ${email}`)).catch(()=>legacyCopy(email)));
     }
-    function legacyCopy(text) {
-      const ta = document.createElement('textarea');
-      ta.value = text; document.body.appendChild(ta);
-      ta.select(); document.execCommand('copy');
-      document.body.removeChild(ta);
-      alert(`Email copied: ${text}`);
+    function legacyCopy(text){
+      const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert(`Email copied: ${text}`);
     }
-
-    /* Prefilled templates */
-    const T_BIZ = [
-      'Hi NOFA Team,',
-      '',
-      'We would like to start the Business Insight plan (EcoForecast AI).',
-      'Company:',
-      'City/Region:',
-      'Industry (NAICS):',
-      'Use cases:',
-      'Timeline:',
-      '',
-      'Thanks!'
-    ].join('\n');
-
-    const T_DEMO = [
-      'Hi NOFA Team,',
-      '',
-      'Please book me for a demo of EcoForecast AI.',
-      'Company:',
-      'Preferred time zones/slots:',
-      ''
-    ].join('\n');
-
-    const T_WAITLIST_ANALYST = [
-      'Hi NOFA Team,',
-      '',
-      'Please add me to the waitlist.',
-      'Interested AI solution: EcoForecast AI / GovFlow AI / Other (please specify)',
-      'Company:',
-      'Role:',
-      'City/Region:',
-      'Use cases:',
-      'Timeline:',
-      ''
-    ].join('\n');
-
-    const T_ENTERPRISE = [
-      'Hi NOFA Team,',
-      '',
-      'We’re interested in an Enterprise pilot.',
-      'Interested AI solution: EcoForecast AI / GovFlow AI / Other (please specify)',
-      'Company:',
-      'Use cases:',
-      'Integrations (BI, API, data sources):',
-      'Timeline:',
-      ''
-    ].join('\n');
+    const T_BIZ = ['Hi NOFA Team,','','We would like to start the Business Insight plan (EcoForecast AI).','Company:','City/Region:','Industry (NAICS):','Use cases:','Timeline:','','Thanks!'].join('\n');
+    const T_DEMO = ['Hi NOFA Team,','','Please book me for a demo of EcoForecast AI.','Company:','Preferred time zones/slots:',''].join('\n');
+    const T_WAITLIST_ANALYST = ['Hi NOFA Team,','','Please add me to the waitlist.','Interested AI solution: EcoForecast AI / GovFlow AI / Other (please specify)','Company:','Role:','City/Region:','Use cases:','Timeline:',''].join('\n');
+    const T_ENTERPRISE = ['Hi NOFA Team,','','We’re interested in an Enterprise pilot.','Interested AI solution: EcoForecast AI / GovFlow AI / Other (please specify)','Company:','Use cases:','Integrations (BI, API, data sources):','Timeline:',''].join('\n');
   </script>
 
-  <!-- App logic -->
+  <!-- App + Auth + History -->
   <script>
+    // ==== Firebase init (replace with your config) ====
+    const firebaseConfig = {
+      apiKey: "YOUR_WEB_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      appId: "YOUR_APP_ID"
+    };
+    firebase.initializeApp(firebaseConfig);
+
     const $ = id => document.getElementById(id);
 
-    /* Preset chips */
+    // ---- Account dropdown ----
+    const accountBtn = $('accountBtn');
+    const accountMenu = $('accountMenu');
+    const histModal = $('histModal');
+    const histBody = $('histBody');
+    const histClose = $('histClose');
+
+    accountBtn.addEventListener('click', () => {
+      accountMenu.classList.toggle('open');
+    });
+    document.addEventListener('click', (e)=>{
+      if (!accountMenu.contains(e.target) && !accountBtn.contains(e.target)) {
+        accountMenu.classList.remove('open');
+      }
+    });
+    histClose.addEventListener('click', ()=> histModal.classList.remove('open'));
+    histModal.addEventListener('click', (e)=>{ if (e.target===histModal) histModal.classList.remove('open'); });
+
+    function renderMenu(user){
+      accountMenu.innerHTML = '';
+      if (!user) {
+        const btnGoogle = document.createElement('button');
+        btnGoogle.textContent = 'Sign in with Google';
+        btnGoogle.onclick = async () => {
+          try { await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
+          catch(e){ alert('Sign-in failed'); }
+          accountMenu.classList.remove('open');
+        };
+        const btnEmail = document.createElement('button');
+        btnEmail.textContent = 'Sign in with Email (demo)';
+        btnEmail.onclick = async ()=>{
+          const email = prompt('Email:');
+          if (!email) return;
+          const pass = Math.random().toString(36).slice(2);
+          try { await firebase.auth().createUserWithEmailAndPassword(email, pass); }
+          catch { await firebase.auth().signInWithEmailAndPassword(email, pass); }
+          accountMenu.classList.remove('open');
+        };
+        accountMenu.append(btnGoogle, btnEmail);
+        accountBtn.textContent = 'Sign In';
+        return;
+      }
+
+      // Logged in
+      const lab = document.createElement('div');
+      lab.style.cssText='padding:8px 12px;color:var(--muted);font-size:12px';
+      lab.textContent = user.email;
+
+      const viewHist = document.createElement('button');
+      viewHist.textContent = 'View Forecast History';
+      viewHist.onclick = async ()=>{
+        accountMenu.classList.remove('open');
+        const items = await loadHistory();
+        histBody.innerHTML = items.length? '' : '<p class="nofa-sub">No history yet.</p>';
+        items.forEach(it=>{
+          const d = tsToDate(it.ts);
+          const el = document.createElement('div');
+          el.className = 'hist-item';
+          el.innerHTML = `<div style="color:var(--muted);font-size:12px">${d.toLocaleString()}</div>
+                          <div><strong>${esc(it?.payload?.geo||'')}</strong> · ${esc(it?.payload?.naics||'')}</div>
+                          <div style="color:var(--muted)">${esc((it?.payload?.event||'').slice(0,180))}</div>`;
+          histBody.appendChild(el);
+        });
+        histModal.classList.add('open');
+      };
+
+      const signOut = document.createElement('button');
+      signOut.textContent = 'Sign Out';
+      signOut.onclick = async ()=>{ await firebase.auth().signOut(); accountMenu.classList.remove('open'); };
+
+      accountMenu.append(lab, viewHist, signOut);
+      accountBtn.textContent = `${user.email} ▾`;
+    }
+
+    firebase.auth().onAuthStateChanged(user => renderMenu(user));
+
+    async function getIdToken(){
+      const u = firebase.auth().currentUser;
+      return u ? u.getIdToken() : null;
+    }
+
+    // ---- Forecast UI ----
     const presetsMap = {
       war_escalation: "A regional conflict escalates with partial blockade of a key shipping lane; insurance premia rise; export controls expand.",
       tariff_steel: "U.S. imposes a 10% tariff on steel imports effective in 60 days; exemptions uncertain; domestic mills signal capacity strain.",
@@ -389,13 +450,9 @@
       party_shift_us: "One party gains unified control of White House and Congress; agenda prioritizes tax, energy, and labor policy changes within 12 months."
     };
     document.querySelectorAll('.chip').forEach(btn=>{
-      btn.addEventListener('click',()=>{
-        const key = btn.getAttribute('data-preset');
-        $('event').value = presetsMap[key] || '';
-      });
+      btn.addEventListener('click',()=>{$('event').value = presetsMap[btn.getAttribute('data-preset')] || '';});
     });
 
-    /* NAICS helper */
     $('naics').addEventListener('input', (e)=>{
       const t = e.target.value.toLowerCase();
       if (/^\d{4}/.test(t)) return;
@@ -410,7 +467,6 @@
       if (hit) e.target.value = hit.v;
     });
 
-    /* Forecast runner */
     const runBtn = $('run'), statusEl = $('status');
     runBtn.addEventListener('click', async () => {
       statusEl.textContent = 'Running forecast…';
@@ -449,6 +505,9 @@
         const data = await res.json();
         renderForecast(data);
         statusEl.textContent = 'Done.';
+
+        // Save to history (if signed in)
+        await saveForecastToHistory(payload, data);
       } catch (e) {
         console.error(e);
         statusEl.textContent = e.message || 'Something went wrong.';
@@ -504,7 +563,7 @@
       return sign + Number(x).toFixed(1) + '%';
     }
 
-    /* Pricing monthly/annual toggle */
+    // pricing toggle
     (function(){
       const toggle = document.getElementById('billing');
       const amounts = document.querySelectorAll('.nofa-price .amt');
@@ -519,6 +578,41 @@
       toggle.addEventListener('change', setMode);
       setMode();
     })();
+
+    // ---- History API helpers ----
+    async function saveForecastToHistory(payload, result) {
+      const token = await getIdToken();
+      if (!token) return; // skip if not signed in
+      const res = await fetch('/api/history/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ payload, result })
+      });
+      if (res.status === 402) {
+        const msg = await res.json().catch(()=>({error:'Quota exceeded'}));
+        alert(msg.error || 'Quota exceeded');
+      }
+    }
+
+    async function loadHistory() {
+      const token = await getIdToken();
+      if (!token) { alert('Please sign in to view your history.'); return []; }
+      const res = await fetch('/api/history/list', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!res.ok) return [];
+      const data = await res.json();
+      // Normalize timestamp from Firestore if needed
+      return (data.items || []).map(x => ({...x, ts: x.ts}));
+    }
+
+    function tsToDate(ts){
+      // supports Firestore Timestamp { _seconds, _nanoseconds } or ISO/date string
+      if (!ts) return new Date();
+      if (typeof ts === 'string' || ts instanceof String) return new Date(ts);
+      if (typeof ts === 'number') return new Date(ts);
+      if (ts._seconds) return new Date(ts._seconds * 1000);
+      return new Date(ts);
+    }
+    function esc(s){ return (s||'').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
   </script>
 </body>
 </html>
