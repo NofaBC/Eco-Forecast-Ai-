@@ -70,10 +70,7 @@
     .switch i{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--accent);transition:transform .2s}
     input#billing:checked + .switch i{transform:translateX(22px)}
 
-    .badge-available, .badge-soon {
-      display:inline-flex; align-items:center; gap:6px;
-      font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--edge);
-    }
+    .badge-available, .badge-soon { display:inline-flex; align-items:center; gap:6px; font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--edge); }
     .badge-available { color: var(--good); border-color: rgba(53,199,89,.5); }
     .badge-soon { color: var(--warn); border-color: rgba(255,214,10,.45); }
     .avail.live { color: var(--good); }
@@ -106,6 +103,8 @@
   <!-- Firebase (compat builds) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <!-- Optional: Analytics -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics-compat.js"></script>
 </head>
 <body>
   <header>
@@ -123,9 +122,7 @@
           <!-- Account -->
           <span class="account">
             <button id="accountBtn" class="account-btn">Sign In</button>
-            <div id="accountMenu" class="account-menu" role="menu" aria-label="Account menu">
-              <!-- Populated by JS depending on auth state -->
-            </div>
+            <div id="accountMenu" class="account-menu" role="menu" aria-label="Account menu"></div>
           </span>
         </nav>
       </div>
@@ -349,14 +346,18 @@
 
   <!-- App + Auth + History -->
   <script>
-    // ==== Firebase init (replace with your config) ====
+    // ==== Firebase init (YOUR config) ====
     const firebaseConfig = {
-      apiKey: "YOUR_WEB_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-      appId: "YOUR_APP_ID"
+      apiKey: "AIzaSyBBfrQcMn5Hmt2H5EbMh06LHmbCvtUZrU8",
+      authDomain: "eco-forecast-ai.firebaseapp.com",
+      projectId: "eco-forecast-ai",
+      storageBucket: "eco-forecast-ai.firebasestorage.app",
+      messagingSenderId: "133605292809",
+      appId: "1:133605292809:web:681c3eb8beb4d2a506b1d8",
+      measurementId: "G-XR5KV7MY16"
     };
     firebase.initializeApp(firebaseConfig);
+    if (firebase.analytics) { firebase.analytics(); }
 
     const $ = id => document.getElementById(id);
 
@@ -378,32 +379,57 @@
     histClose.addEventListener('click', ()=> histModal.classList.remove('open'));
     histModal.addEventListener('click', (e)=>{ if (e.target===histModal) histModal.classList.remove('open'); });
 
+    async function signInWithGoogle() {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      try {
+        await firebase.auth().signInWithPopup(provider);
+      } catch (err) {
+        const popupIssues = ['auth/popup-blocked', 'auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
+        if (popupIssues.includes(err.code)) {
+          await firebase.auth().signInWithRedirect(provider);
+        } else {
+          alert('Google sign-in failed: ' + (err.message || err.code));
+          console.error(err);
+        }
+      }
+    }
+    async function signInWithEmailPrompt() {
+      const email = prompt('Email:');
+      if (!email) return;
+      const password = prompt('Create or enter your password (min 6 chars):');
+      if (!password) return;
+      try {
+        await firebase.auth().createUserWithEmailAndPassword(email, password);
+      } catch (err) {
+        if (err.code === 'auth/email-already-in-use') {
+          await firebase.auth().signInWithEmailAndPassword(email, password);
+        } else {
+          alert('Email sign-in failed: ' + (err.message || err.code));
+          console.error(err);
+        }
+      }
+    }
+    async function signOutNow(){ await firebase.auth().signOut(); }
+    async function getIdToken(){
+      const u = firebase.auth().currentUser;
+      return u ? u.getIdToken() : null;
+    }
+
     function renderMenu(user){
       accountMenu.innerHTML = '';
       if (!user) {
         const btnGoogle = document.createElement('button');
         btnGoogle.textContent = 'Sign in with Google';
-        btnGoogle.onclick = async () => {
-          try { await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
-          catch(e){ alert('Sign-in failed'); }
-          accountMenu.classList.remove('open');
-        };
+        btnGoogle.onclick = async () => { await signInWithGoogle(); accountMenu.classList.remove('open'); };
+
         const btnEmail = document.createElement('button');
-        btnEmail.textContent = 'Sign in with Email (demo)';
-        btnEmail.onclick = async ()=>{
-          const email = prompt('Email:');
-          if (!email) return;
-          const pass = Math.random().toString(36).slice(2);
-          try { await firebase.auth().createUserWithEmailAndPassword(email, pass); }
-          catch { await firebase.auth().signInWithEmailAndPassword(email, pass); }
-          accountMenu.classList.remove('open');
-        };
+        btnEmail.textContent = 'Sign in with Email';
+        btnEmail.onclick = async () => { await signInWithEmailPrompt(); accountMenu.classList.remove('open'); };
+
         accountMenu.append(btnGoogle, btnEmail);
         accountBtn.textContent = 'Sign In';
         return;
       }
-
-      // Logged in
       const lab = document.createElement('div');
       lab.style.cssText='padding:8px 12px;color:var(--muted);font-size:12px';
       lab.textContent = user.email;
@@ -428,18 +454,12 @@
 
       const signOut = document.createElement('button');
       signOut.textContent = 'Sign Out';
-      signOut.onclick = async ()=>{ await firebase.auth().signOut(); accountMenu.classList.remove('open'); };
+      signOut.onclick = async ()=>{ await signOutNow(); accountMenu.classList.remove('open'); };
 
       accountMenu.append(lab, viewHist, signOut);
       accountBtn.textContent = `${user.email} ▾`;
     }
-
-    firebase.auth().onAuthStateChanged(user => renderMenu(user));
-
-    async function getIdToken(){
-      const u = firebase.auth().currentUser;
-      return u ? u.getIdToken() : null;
-    }
+    firebase.auth().onAuthStateChanged(renderMenu);
 
     // ---- Forecast UI ----
     const presetsMap = {
@@ -600,12 +620,10 @@
       const res = await fetch('/api/history/list', { headers: { 'Authorization': `Bearer ${token}` } });
       if (!res.ok) return [];
       const data = await res.json();
-      // Normalize timestamp from Firestore if needed
       return (data.items || []).map(x => ({...x, ts: x.ts}));
     }
 
     function tsToDate(ts){
-      // supports Firestore Timestamp { _seconds, _nanoseconds } or ISO/date string
       if (!ts) return new Date();
       if (typeof ts === 'string' || ts instanceof String) return new Date(ts);
       if (typeof ts === 'number') return new Date(ts);
