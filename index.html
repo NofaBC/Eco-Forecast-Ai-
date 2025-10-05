@@ -41,6 +41,7 @@
     .drivers li{margin:6px 0}
     .good{color:var(--good)} .bad{color:var(--bad)} .warn{color:var(--warn)}
     .src-badge{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--edge);border-radius:999px;padding:4px 10px;font-size:11px;color:var(--muted);margin-top:10px}
+    .result-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
 
     /* Pricing */
     .pricing{margin-top:32px}
@@ -80,10 +81,11 @@
     /* Account dropdown */
     .account{position:relative; display:inline-block}
     .account-btn{cursor:pointer; padding:8px 10px; border:1px solid var(--edge); border-radius:10px; color:var(--text); background:#0f1630;}
-    .account-menu{position:absolute; right:0; top:42px; min-width:220px; display:none; background:var(--card); border:1px solid var(--edge); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.35); padding:6px}
+    .account-menu{position:absolute; right:0; top:42px; min-width:260px; display:none; background:var(--card); border:1px solid var(--edge); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.35); padding:6px}
     .account-menu.open{display:block}
     .account-menu a, .account-menu button{display:block; width:100%; text-align:left; background:transparent; border:0; color:var(--text); padding:10px 12px; border-radius:8px; cursor:pointer}
     .account-menu a:hover, .account-menu button:hover{background:#0f1630}
+    .usage{padding:8px 12px; color:var(--muted); font-size:12px}
 
     /* History modal */
     .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.5); z-index:50}
@@ -97,6 +99,14 @@
       .hero{grid-template-columns:1fr}
       .grid{grid-template-columns:1fr}
       .nofa-grid{grid-template-columns:1fr}
+    }
+
+    /* Print styles for PDF brief */
+    @media print {
+      header, footer, nav, .modal { display:none !important; }
+      body { background:#fff; color:#000; }
+      .hero-card { border:0; box-shadow:none; }
+      a { color:#000; }
     }
   </style>
 
@@ -242,6 +252,12 @@
           <h4 style="margin:12px 0 6px">Impact Visual</h4>
           <canvas id="chartImpact" width="560" height="220" style="width:100%;max-width:100%;border:1px solid var(--edge);border-radius:10px;background:#0e1530"></canvas>
           <p class="u" id="chartNote" style="margin-top:6px"></p>
+
+          <!-- Result Actions -->
+          <div class="result-actions">
+            <button id="btnCsv">Download CSV</button>
+            <button id="btnPdf">Download PDF Brief</button>
+          </div>
         </div>
       </section>
     </section>
@@ -371,7 +387,7 @@
     const T_ENTERPRISE = ['Hi NOFA Team,','','We’re interested in an Enterprise pilot.','Interested AI solution: EcoForecast AI / GovFlow AI / Other (please specify)','Company:','Use cases:','Integrations (BI, API, data sources):','Timeline:',''].join('\n');
   </script>
 
-  <!-- App + Auth + History + Realtime + Chart -->
+  <!-- App + Auth + History + Realtime + Chart + CSV/PDF + Usage -->
   <script>
     // ==== Firebase init (YOUR config) ====
     const firebaseConfig = {
@@ -437,6 +453,9 @@
       return u ? u.getIdToken() : null;
     }
 
+    // Usage state
+    let currentUsage = { count: 0, cap: 10 }; // cap can be plan-based later
+
     function renderMenu(user){
       accountMenu.innerHTML = '';
       if (!user) {
@@ -456,19 +475,29 @@
       lab.style.cssText='padding:8px 12px;color:var(--muted);font-size:12px';
       lab.textContent = user.email;
 
+      const usageEl = document.createElement('div');
+      usageEl.className = 'usage';
+      usageEl.id = 'usageView';
+      usageEl.textContent = `Forecasts this month: ${currentUsage.count} / ${currentUsage.cap}`;
+
       const viewHist = document.createElement('button');
       viewHist.textContent = 'View Forecast History';
       viewHist.onclick = ()=>{
         accountMenu.classList.remove('open');
-        histModal.classList.add('open'); // data flows in via Firestore listener
+        histModal.classList.add('open'); // data via Firestore listener
       };
 
       const signOut = document.createElement('button');
       signOut.textContent = 'Sign Out';
       signOut.onclick = async ()=>{ await signOutNow(); accountMenu.classList.remove('open'); };
 
-      accountMenu.append(lab, viewHist, signOut);
+      accountMenu.append(lab, usageEl, viewHist, signOut);
       accountBtn.textContent = `${user.email} ▾`;
+    }
+
+    function updateUsageView(){
+      const el = document.getElementById('usageView');
+      if (el) el.textContent = `Forecasts this month: ${currentUsage.count} / ${currentUsage.cap}`;
     }
 
     // ---- Firestore (client) init ----
@@ -538,10 +567,60 @@
       }
     }
 
-    firebase.auth().onAuthStateChanged((user) => {
+    // Try to fetch usage from server, else fallback to localStorage
+    async function refreshUsage(){
+      const u = firebase.auth().currentUser;
+      if (!u) { currentUsage = { count: 0, cap: 10 }; updateUsageView(); return; }
+      const token = await u.getIdToken();
+      try {
+        const r = await fetch('/api/usage/get', { headers: { Authorization: `Bearer ${token}` }});
+        if (!r.ok) throw new Error('no server usage');
+        const j = await r.json();
+        currentUsage = { count: Number(j.count || 0), cap: Number(j.cap || 10) };
+      } catch {
+        // Local fallback (per user per month)
+        const key = usageKey(u.uid);
+        const val = Number(localStorage.getItem(key) || '0');
+        currentUsage = { count: val, cap: 10 };
+      }
+      updateUsageView();
+    }
+
+    function usageKey(uid){
+      const d = new Date();
+      const ym = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      return `usage:${uid}:${ym}`;
+    }
+
+    async function incrUsage(){
+      const u = firebase.auth().currentUser;
+      if (!u) return;
+      const token = await u.getIdToken();
+      try {
+        const r = await fetch('/api/usage/incr', { method:'POST', headers: { Authorization: `Bearer ${token}` }});
+        if (!r.ok) throw new Error('no server incr');
+        const j = await r.json();
+        currentUsage = { count: Number(j.count || (currentUsage.count+1)), cap: Number(j.cap || currentUsage.cap) };
+      } catch {
+        // localStorage fallback
+        const key = usageKey(u.uid);
+        const val = Number(localStorage.getItem(key) || '0') + 1;
+        localStorage.setItem(key, String(val));
+        currentUsage.count = val;
+      }
+      updateUsageView();
+    }
+
+    firebase.auth().onAuthStateChanged(async (user) => {
       renderMenu(user);
-      if (user) attachHistoryListener(user.uid);
-      else detachHistoryListener();
+      if (user) {
+        attachHistoryListener(user.uid);
+        await refreshUsage();
+      } else {
+        detachHistoryListener();
+        currentUsage = { count: 0, cap: 10 };
+        updateUsageView();
+      }
     });
 
     // ---- Forecast UI ----
@@ -599,7 +678,6 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-
         if (!res.ok) {
           const txt = await res.text().catch(()=> '');
           throw new Error(`API ${res.status}: ${txt || 'Request failed'}`);
@@ -611,6 +689,12 @@
 
         // Save to history (if signed in)
         await saveForecastToHistory(payload, data);
+
+        // Increment usage (server or local fallback)
+        await incrUsage();
+
+        // Stash last result for CSV/PDF
+        lastForecast = { payload, data, ts: new Date().toISOString() };
       } catch (e) {
         console.error(e);
         statusEl.textContent = e.message || 'Something went wrong.';
@@ -670,7 +754,6 @@
         badge.style.display = 'inline-flex';
       }
 
-      // Details
       $('sum').textContent = data?.summary || '';
       fillList('assumptions', data?.assumptions);
       fillList('risks', data?.risks);
@@ -855,6 +938,101 @@
 
       if (noteEl) noteEl.textContent = 'Lines approximate trajectory based on time path and headline KPIs.';
     }
+
+    // ===== CSV + PDF =====
+    let lastForecast = null;
+
+    document.getElementById('btnCsv').addEventListener('click', ()=>{
+      if (!lastForecast || !lastForecast.data) { alert('Run a forecast first.'); return; }
+      const { payload, data, ts } = lastForecast;
+      const rows = [];
+      rows.push(['Timestamp', ts]);
+      rows.push(['Geo', payload.geo]);
+      rows.push(['Industry', payload.naics]);
+      rows.push(['Event', payload.event]);
+      rows.push(['Horizon', payload.horizon]);
+      rows.push(['Scenario', payload.scenario]);
+      rows.push(['Extra Factors', payload.extra_factors]);
+      rows.push([]);
+      rows.push(['KPI','Value']);
+      rows.push(['Demand %', data.demand_pct]);
+      rows.push(['Cost %', data.cost_pct]);
+      rows.push(['Margin (bps)', data.margin_bps]);
+      rows.push(['Confidence', Math.round((data.confidence||0)*100)+'%']);
+      rows.push([]);
+      rows.push(['Summary', data.summary || '']);
+      rows.push([]);
+      rows.push(['Drivers']);
+      (data.drivers||[]).forEach(d=>rows.push([d.tone, d.text]));
+      rows.push([]);
+      rows.push(['Assumptions']); (data.assumptions||[]).forEach(s=>rows.push([s]));
+      rows.push([]);
+      rows.push(['Risks']); (data.risks||[]).forEach(s=>rows.push([s]));
+      rows.push([]);
+      rows.push(['Local Signals']); (data.local_signals||[]).forEach(s=>rows.push([s]));
+      rows.push([]);
+      rows.push(['Time Path']);
+      (data.time_path||[]).forEach(p=>rows.push([p.t, p.note]));
+      rows.push([]);
+      rows.push(['Actions']); (data.actions||[]).forEach(s=>rows.push([s]));
+
+      const csv = rows.map(r => r.map(cell => `"${String(cell??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const name = `EcoForecast_${payload.geo}_${payload.naics}_${new Date(ts).toISOString().slice(0,10)}.csv`.replace(/[^\w.\-]+/g,'_');
+      const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('btnPdf').addEventListener('click', ()=>{
+      if (!lastForecast || !lastForecast.data) { alert('Run a forecast first.'); return; }
+      const { payload, data, ts } = lastForecast;
+      const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1000');
+      const style = `
+        <style>
+          body{font-family:Arial,Helvetica,sans-serif;color:#000;padding:24px}
+          h1{margin:0 0 8px;font-size:20px}
+          h2{margin:18px 0 8px;font-size:16px}
+          .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0}
+          .card{border:1px solid #ccc;border-radius:8px;padding:10px}
+          ul{margin:6px 0 10px}
+          .muted{color:#555;font-size:12px}
+        </style>
+      `;
+      const html = `
+        <h1>EcoForecast AI™ — Forecast Brief</h1>
+        <div class="muted">Generated: ${new Date(ts).toLocaleString()}</div>
+        <div class="card">
+          <div><strong>Geo:</strong> ${esc(payload.geo)} &nbsp; <strong>Industry:</strong> ${esc(payload.naics)}</div>
+          <div><strong>Event:</strong> ${esc(payload.event)}</div>
+          <div><strong>Horizon:</strong> ${esc(payload.horizon)} &nbsp; <strong>Scenario:</strong> ${esc(payload.scenario)}</div>
+          <div><strong>Extra:</strong> ${esc(payload.extra_factors || '')}</div>
+        </div>
+        <div class="kpi">
+          <div class="card"><div>Demand</div><div><strong>${fmtPct(data.demand_pct)}</strong></div></div>
+          <div class="card"><div>Costs</div><div><strong>${fmtPct(data.cost_pct)}</strong></div></div>
+          <div class="card"><div>EBITDA Margin</div><div><strong>${(data.margin_bps>=0?'+':'')+data.margin_bps} bps</strong></div></div>
+        </div>
+        <h2>Summary</h2>
+        <div class="card">${esc(data.summary || '')}</div>
+        <h2>Drivers</h2>
+        <div class="card"><ul>${(data.drivers||[]).map(d=>`<li>[${d.tone}] ${esc(d.text)}`).join('')}</ul></div>
+        <h2>Assumptions</h2>
+        <div class="card"><ul>${(data.assumptions||[]).map(s=>`<li>${esc(s)}`).join('')}</ul></div>
+        <h2>Risks</h2>
+        <div class="card"><ul>${(data.risks||[]).map(s=>`<li>${esc(s)}`).join('')}</ul></div>
+        <h2>Local Signals</h2>
+        <div class="card"><ul>${(data.local_signals||[]).map(s=>`<li>${esc(s)}`).join('')}</ul></div>
+        <h2>Time Path</h2>
+        <div class="card"><ul>${(data.time_path||[]).map(p=>`<li>${esc(p.t||'')}: ${esc(p.note||'')}`).join('')}</ul></div>
+        <h2>Actions</h2>
+        <div class="card"><ul>${(data.actions||[]).map(s=>`<li>${esc(s)}`).join('')}</ul></div>
+        <div class="muted">Source: ${esc(data?.meta?.source || '')}</div>
+        <script>window.onload=()=>setTimeout(()=>window.print(),250)</script>
+      `;
+      win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>EcoForecast Brief</title>${style}</head><body>${html}</body></html>`);
+      win.document.close();
+    });
+
   </script>
 </body>
 </html>
