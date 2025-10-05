@@ -215,6 +215,28 @@
           <ul id="drivers" class="drivers"></ul>
           <p id="conf" class="u" style="margin-top:8px"></p>
           <div id="sourceBadge" class="src-badge" style="display:none"></div>
+
+          <!-- NEW: Show more details toggle + content -->
+          <div id="moreSwitch" style="margin-top:10px">
+            <label style="font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center">
+              <input type="checkbox" id="showMore">
+              Show more details
+            </label>
+          </div>
+
+          <div id="details" style="display:none; margin-top:10px">
+            <p id="sum" style="margin:6px 0"></p>
+            <h4 style="margin:10px 0 4px">Assumptions</h4>
+            <ul id="assumptions" class="drivers"></ul>
+            <h4 style="margin:10px 0 4px">Risks</h4>
+            <ul id="risks" class="drivers"></ul>
+            <h4 style="margin:10px 0 4px">Local Signals</h4>
+            <ul id="signals" class="drivers"></ul>
+            <h4 style="margin:10px 0 4px">Time Path</h4>
+            <ul id="tpath" class="drivers"></ul>
+            <h4 style="margin:10px 0 4px">Suggested Actions</h4>
+            <ul id="actions" class="drivers"></ul>
+          </div>
         </div>
       </section>
     </section>
@@ -227,7 +249,7 @@
           <h3 id="pricing-h" class="nofa-sub" style="margin:0 0 8px">EcoForecast AI™ Plans</h3>
 
           <p class="nofa-sub" style="margin:6px 0 14px">
-            <strong>Note:</strong> We’re in <em>Demo+</em>. <span class="avail live">Business Insight is available now</span>.
+            <strong>Note:</strong> We’re in <em>Demo+</em>. <span class="avail.live">Business Insight is available now</span>.
             <span class="avail soon">Analyst Pro</span> and <span class="avail soon">Enterprise</span> are coming soon.
           </p>
 
@@ -382,15 +404,11 @@
     async function signInWithGoogle() {
       const provider = new firebase.auth.GoogleAuthProvider();
       try {
-        await firebase.auth().signInWithPopup(provider);
+        // redirect is the most reliable across browsers
+        await firebase.auth().signInWithRedirect(provider);
       } catch (err) {
-        const popupIssues = ['auth/popup-blocked', 'auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
-        if (popupIssues.includes(err.code)) {
-          await firebase.auth().signInWithRedirect(provider);
-        } else {
-          alert('Google sign-in failed: ' + (err.message || err.code));
-          console.error(err);
-        }
+        alert('Google sign-in failed: ' + (err.message || err.code));
+        console.error(err);
       }
     }
     async function signInWithEmailPrompt() {
@@ -545,7 +563,16 @@
       $('conf').textContent = '';
       $('status').textContent = '';
       $('sourceBadge').style.display = 'none';
+      $('showMore').checked = false;
+      $('details').style.display = 'none';
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // NEW: toggle show more details
+    const showMore = document.getElementById('showMore');
+    const details  = document.getElementById('details');
+    showMore?.addEventListener('change', ()=> {
+      details.style.display = showMore.checked ? 'block' : 'none';
     });
 
     function renderForecast(data){
@@ -575,6 +602,37 @@
         badge.textContent = label;
         badge.style.display = 'inline-flex';
       }
+
+      // NEW: render details if present
+      $('sum').textContent = data?.summary || '';
+      fillList('assumptions', data?.assumptions);
+      fillList('risks', data?.risks);
+      fillList('signals', data?.local_signals);
+
+      const tp = Array.isArray(data?.time_path) ? data.time_path : [];
+      const tpathEl = $('tpath'); tpathEl.innerHTML = '';
+      tp.forEach(x => {
+        const li = document.createElement('li');
+        li.textContent = `• ${x?.t || ''}: ${x?.note || ''}`;
+        tpathEl.appendChild(li);
+      });
+
+      fillList('actions', data?.actions);
+
+      const hasDetails = (data?.summary || tp.length || (data?.assumptions||[]).length ||
+                          (data?.risks||[]).length || (data?.local_signals||[]).length ||
+                          (data?.actions||[]).length);
+      if (hasDetails) { showMore.checked = true; details.style.display = 'block'; }
+      else            { showMore.checked = false; details.style.display = 'none'; }
+    }
+
+    function fillList(id, arr) {
+      const el = $(id); el.innerHTML = '';
+      (arr || []).forEach(s => {
+        const li = document.createElement('li');
+        li.textContent = '• ' + s;
+        el.appendChild(li);
+      });
     }
 
     function fmtPct(x){
