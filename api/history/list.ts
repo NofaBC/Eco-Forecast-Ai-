@@ -1,4 +1,3 @@
-// api/history/list.ts
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { auth, db } from "../_fbAdmin";
 
@@ -21,7 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     return res.status(200).json({ items });
-  } catch (err: any) {
+  } catch (err) {
     console.error("history/list error:", err);
     return res.status(500).json({ error: "Failed to list forecasts" });
   }
