@@ -1,9 +1,4 @@
-// api/_fbAdmin.ts
-// ENV required on Vercel:
-//   FIREBASE_PROJECT_ID
-//   FIREBASE_CLIENT_EMAIL
-//   FIREBASE_PRIVATE_KEY   (use \n for newlines)
-
+// ENV on Vercel: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY (with \n)
 import * as admin from "firebase-admin";
 
 const projectId   = process.env.FIREBASE_PROJECT_ID!;
