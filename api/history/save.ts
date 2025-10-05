@@ -1,4 +1,3 @@
-// api/history/save.ts
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { auth, db, Timestamp } from "../_fbAdmin";
 
@@ -15,24 +14,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { payload, result } = req.body || {};
     if (!payload || !result) return res.status(400).json({ error: "Missing payload/result" });
 
-    // --- Basic quota: 10 runs per calendar month (for Business Insight demo) ---
+    // Basic quota: 10 forecasts per calendar month
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthStartTs = Timestamp.fromDate(monthStart);
-
     const usedThisMonth = await db
       .collection("users").doc(uid)
       .collection("forecasts")
-      .where("ts", ">=", monthStartTs)
+      .where("ts", ">=", Timestamp.fromDate(monthStart))
       .get();
 
     if (usedThisMonth.size >= 10) {
-      return res.status(402).json({ error: "Quota exceeded (10 forecasts/month on Business Insight demo)" });
+      return res.status(402).json({ error: "Quota exceeded (10 forecasts/month in Demo+)" });
     }
 
     const doc = {
-      payload,                  // { event, geo, naics, horizon, scenario, extra_factors }
-      result,                   // response from /api/forecast
+      payload,
+      result,
       ts: Timestamp.now(),
       city: payload?.geo || null,
       naics: payload?.naics || null,
@@ -42,7 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const ref = await db.collection("users").doc(uid).collection("forecasts").add(doc);
     return res.status(200).json({ ok: true, id: ref.id });
-  } catch (err: any) {
+  } catch (err) {
     console.error("history/save error:", err);
     return res.status(500).json({ error: "Failed to save forecast" });
   }
