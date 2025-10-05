@@ -103,7 +103,7 @@
   <!-- Firebase (compat builds) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-  <!-- Optional: Analytics -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics-compat.js"></script>
 </head>
 <body>
@@ -237,6 +237,11 @@
             <h4 style="margin:10px 0 4px">Suggested Actions</h4>
             <ul id="actions" class="drivers"></ul>
           </div>
+
+          <!-- Impact Chart -->
+          <h4 style="margin:12px 0 6px">Impact Visual</h4>
+          <canvas id="chartImpact" width="560" height="220" style="width:100%;max-width:100%;border:1px solid var(--edge);border-radius:10px;background:#0e1530"></canvas>
+          <p class="u" id="chartNote" style="margin-top:6px"></p>
         </div>
       </section>
     </section>
@@ -366,7 +371,7 @@
     const T_ENTERPRISE = ['Hi NOFA Team,','','We’re interested in an Enterprise pilot.','Interested AI solution: EcoForecast AI / GovFlow AI / Other (please specify)','Company:','Use cases:','Integrations (BI, API, data sources):','Timeline:',''].join('\n');
   </script>
 
-  <!-- App + Auth + History -->
+  <!-- App + Auth + History + Realtime + Chart -->
   <script>
     // ==== Firebase init (YOUR config) ====
     const firebaseConfig = {
@@ -404,7 +409,7 @@
     async function signInWithGoogle() {
       const provider = new firebase.auth.GoogleAuthProvider();
       try {
-        await firebase.auth().signInWithRedirect(provider); // robust across browsers
+        await firebase.auth().signInWithRedirect(provider);
       } catch (err) {
         alert('Google sign-in failed: ' + (err.message || err.code));
         console.error(err);
@@ -453,20 +458,9 @@
 
       const viewHist = document.createElement('button');
       viewHist.textContent = 'View Forecast History';
-      viewHist.onclick = async ()=>{
+      viewHist.onclick = ()=>{
         accountMenu.classList.remove('open');
-        const items = await loadHistory();
-        histBody.innerHTML = items.length? '' : '<p class="nofa-sub">No history yet.</p>';
-        items.forEach(it=>{
-          const d = tsToDate(it.ts);
-          const el = document.createElement('div');
-          el.className = 'hist-item';
-          el.innerHTML = `<div style="color:var(--muted);font-size:12px">${d.toLocaleString()}</div>
-                          <div><strong>${esc(it?.payload?.geo||'')}</strong> · ${esc(it?.payload?.naics||'')}</div>
-                          <div style="color:var(--muted)">${esc((it?.payload?.event||'').slice(0,180))}</div>`;
-          histBody.appendChild(el);
-        });
-        histModal.classList.add('open');
+        histModal.classList.add('open'); // data flows in via Firestore listener
       };
 
       const signOut = document.createElement('button');
@@ -476,7 +470,79 @@
       accountMenu.append(lab, viewHist, signOut);
       accountBtn.textContent = `${user.email} ▾`;
     }
-    firebase.auth().onAuthStateChanged(renderMenu);
+
+    // ---- Firestore (client) init ----
+    const dbClient = firebase.firestore();
+
+    // Live history state
+    let unsubHistory = null;
+
+    function attachHistoryListener(uid) {
+      detachHistoryListener();
+      unsubHistory = dbClient
+        .collection('users').doc(uid)
+        .collection('forecasts')
+        .orderBy('ts', 'desc')
+        .limit(50)
+        .onSnapshot((snap) => {
+          const items = [];
+          snap.forEach(doc => {
+            const x = doc.data() || {};
+            const ts = x.ts && x.ts.toDate ? x.ts.toDate().toISOString() : null;
+            items.push({ id: doc.id, ts, payload: x.payload || {}, result: x.result || {} });
+          });
+          renderHistory(items);
+        }, (err) => {
+          console.error('history onSnapshot error:', err);
+        });
+    }
+    function detachHistoryListener() {
+      if (typeof unsubHistory === 'function') { unsubHistory(); unsubHistory = null; }
+    }
+
+    function renderHistory(items) {
+      if (!histBody) return;
+      histBody.innerHTML = (items && items.length)
+        ? ''
+        : '<p class="nofa-sub">No history yet.</p>';
+
+      items.forEach(it => {
+        const d = tsToDate(it.ts);
+        const el = document.createElement('div');
+        el.className = 'hist-item';
+        el.innerHTML = `
+          <div style="color:var(--muted);font-size:12px">${d.toLocaleString()}</div>
+          <div><strong>${esc(it?.payload?.geo||'')}</strong> · ${esc(it?.payload?.naics||'')}</div>
+          <div style="color:var(--muted)">${esc((it?.payload?.event||'').slice(0,180))}</div>
+        `;
+        el.addEventListener('click', () => {
+          hydrateFromHistory(it);
+          histModal.classList.remove('open');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        histBody.appendChild(el);
+      });
+    }
+
+    function hydrateFromHistory(it) {
+      try {
+        $('event').value = it?.payload?.event || '';
+        $('geo').value = it?.payload?.geo || '';
+        $('naics').value = it?.payload?.naics || '';
+        $('horizon').value = it?.payload?.horizon || 'medium';
+        $('scenario').value = it?.payload?.scenario || 'Base';
+        $('factors').value = it?.payload?.extra_factors || '';
+        renderForecast(it?.result || {});
+      } catch (e) {
+        console.error('hydrateFromHistory error:', e);
+      }
+    }
+
+    firebase.auth().onAuthStateChanged((user) => {
+      renderMenu(user);
+      if (user) attachHistoryListener(user.uid);
+      else detachHistoryListener();
+    });
 
     // ---- Forecast UI ----
     const presetsMap = {
@@ -564,6 +630,7 @@
       $('sourceBadge').style.display = 'none';
       $('showMore').checked = false;
       $('details').style.display = 'none';
+      renderImpactChart({ demand_pct:0, cost_pct:0, margin_bps:0, time_path:[] });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
@@ -574,6 +641,7 @@
       details.style.display = showMore.checked ? 'block' : 'none';
     });
 
+    // ====== RENDER FORECAST ======
     function renderForecast(data){
       $('kpiDemand').textContent = fmtPct(data?.demand_pct);
       $('kpiCosts').textContent  = fmtPct(data?.cost_pct);
@@ -622,6 +690,14 @@
                           (data?.actions||[]).length);
       if (hasDetails) { showMore.checked = true; details.style.display = 'block'; }
       else            { showMore.checked = false; details.style.display = 'none'; }
+
+      // Draw/update the chart
+      renderImpactChart({
+        demand_pct: data?.demand_pct,
+        cost_pct: data?.cost_pct,
+        margin_bps: data?.margin_bps,
+        time_path: data?.time_path
+      });
     }
 
     function fillList(id, arr) {
@@ -655,7 +731,7 @@
       setMode();
     })();
 
-    // ---- History API helpers ----
+    // ---- History API helpers (server save; UI reads via realtime listener) ----
     async function saveForecastToHistory(payload, result) {
       const token = await getIdToken();
       if (!token) return; // skip if not signed in
@@ -670,15 +746,6 @@
       }
     }
 
-    async function loadHistory() {
-      const token = await getIdToken();
-      if (!token) { alert('Please sign in to view your history.'); return []; }
-      const res = await fetch('/api/history/list', { headers: { 'Authorization': `Bearer ${token}` } });
-      if (!res.ok) return [];
-      const data = await res.json();
-      return (data.items || []).map(x => ({...x, ts: x.ts}));
-    }
-
     function tsToDate(ts){
       if (!ts) return new Date();
       if (typeof ts === 'string' || ts instanceof String) return new Date(ts);
@@ -687,6 +754,107 @@
       return new Date(ts);
     }
     function esc(s){ return (s||'').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+
+    // ===== Simple Canvas chart (no libs) =====
+    function renderImpactChart({ demand_pct, cost_pct, margin_bps, time_path }) {
+      const canvas = document.getElementById('chartImpact');
+      const noteEl = document.getElementById('chartNote');
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      let labels = [];
+      let demand = [];
+      let cost = [];
+      let margin = [];
+
+      if (Array.isArray(time_path) && time_path.length) {
+        labels = time_path.map(p => p.t || '');
+        const n = time_path.length;
+        const dm = Number(demand_pct || 0);
+        const cs = Number(cost_pct || 0);
+        const mb = Number(margin_bps || 0);
+        for (let i = 1; i <= n; i++) {
+          const f = i / n;
+          demand.push((dm * f).toFixed(2));
+          cost.push((cs * f).toFixed(2));
+          margin.push(Math.round(mb * f));
+        }
+      } else {
+        labels = ['Now', 'Mid', 'Later'];
+        demand = [0, (Number(demand_pct||0)/2).toFixed(2), Number(demand_pct||0).toFixed(2)];
+        cost   = [0, (Number(cost_pct||0)/2).toFixed(2), Number(cost_pct||0).toFixed(2)];
+        margin = [0, Math.round(Number(margin_bps||0)/2), Math.round(Number(margin_bps||0))];
+      }
+
+      const P = { l: 42, r: 10, t: 10, b: 26 };
+      const W = canvas.width - P.l - P.r;
+      const H = canvas.height - P.t - P.b;
+
+      const allY = [...demand, ...cost, ...margin].map(Number);
+      const yMin = Math.min(...allY, 0);
+      const yMax = Math.max(...allY, 0);
+      const yPad = (yMax - yMin) * 0.15 || 1;
+      const Y0 = yMin - yPad, Y1 = yMax + yPad;
+
+      const xStep = W / Math.max(1, labels.length - 1);
+      const yScale = (val) => H * (1 - (val - Y0) / (Y1 - Y0)) + P.t;
+
+      // Axes
+      ctx.strokeStyle = '#27315f';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(P.l, P.t); ctx.lineTo(P.l, P.t + H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(P.l, P.t + H); ctx.lineTo(P.l + W, P.t + H); ctx.stroke();
+
+      // Zero line
+      if (Y0 < 0 && Y1 > 0) {
+        const y0 = yScale(0);
+        ctx.strokeStyle = '#33407a';
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(P.l, y0); ctx.lineTo(P.l + W, y0); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      function drawSeries(values, color) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        values.forEach((v, i) => {
+          const x = P.l + xStep * i;
+          const y = yScale(Number(v));
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
+
+      drawSeries(demand, '#6ea8fe'); // demand
+      drawSeries(cost,   '#ffd60a'); // cost
+      drawSeries(margin, '#35c759'); // margin bps
+
+      // X labels
+      ctx.fillStyle = '#aab3d9';
+      ctx.font = '11px system-ui, -apple-system, Segoe UI, Arial';
+      labels.forEach((lbl, i) => {
+        const x = P.l + xStep * i;
+        ctx.fillText(lbl, x - 10, P.t + H + 16);
+      });
+
+      // Legend
+      const legend = [
+        { k: 'Demand %', c: '#6ea8fe' },
+        { k: 'Cost %',   c: '#ffd60a' },
+        { k: 'Margin bps', c: '#35c759' }
+      ];
+      let lx = P.l, ly = P.t + 8;
+      legend.forEach(item => {
+        ctx.fillStyle = item.c; ctx.fillRect(lx, ly - 9, 12, 3);
+        ctx.fillStyle = '#aab3d9'; ctx.fillText(item.k, lx + 16, ly);
+        lx += 110;
+      });
+
+      if (noteEl) noteEl.textContent = 'Lines approximate trajectory based on time path and headline KPIs.';
+    }
   </script>
 </body>
 </html>
