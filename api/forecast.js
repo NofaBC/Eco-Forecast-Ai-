@@ -1,27 +1,28 @@
 // api/forecast.js
-// Rich forecast endpoint with JSON-mode LLM + safe fallbacks.
+// EcoForecast AI™ — Forecast endpoint (Node/JS, Vercel serverless)
 //
-// Vercel Env (Project → Settings → Environment Variables):
-//   OPENROUTER_API_KEY = sk-or-... (from openrouter.ai)
+// ENV (Vercel → Project → Settings → Environment Variables):
+//   OPENROUTER_API_KEY = sk-or-...   (required for live AI; fallback works without)
 // Optional (nice-to-have for OpenRouter analytics/TOS):
 //   OR_SITE_URL  = https://eco-forecast-ai.vercel.app
 //   OR_APP_NAME  = EcoForecast AI
+//
+// INPUT (POST JSON):
+//   { event, geo, naics, horizon, scenario, extra_factors }
+//
+// OUTPUT (JSON):
+//   { summary, demand_pct, cost_pct, margin_bps, drivers[], assumptions[], risks[],
+//     local_signals[], time_path[], actions[], confidence, meta:{source, latency_ms} }
 
-const MODEL = "openai/gpt-4o-mini"; // cost-effective, solid JSON-mode
+const MODEL = "openai/gpt-4o-mini"; // fast + inexpensive
 const TIMEOUT_MS = 25000;
 
+// ---------- helpers ----------
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function bad(res, msg, code = 400) { return res.status(code).json({ error: msg }); }
+function pick(v, def) { return v === undefined || v === null ? def : v; }
+function num(x, d = 0) { const n = Number(x); return Number.isFinite(n) ? n : d; }
 
-function badRequest(res, msg, code = 400) {
-  return res.status(code).json({ error: msg });
-}
-function pick(v, def) {
-  return v === undefined || v === null ? def : v;
-}
-function toNumber(x, def = 0) {
-  const n = Number(x);
-  return Number.isFinite(n) ? n : def;
-}
 function safeJSON(text) {
   try {
     const cleaned = String(text || "")
@@ -30,31 +31,30 @@ function safeJSON(text) {
       .replace(/^```/, "")
       .replace(/```$/, "");
     return JSON.parse(cleaned);
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
+
 function demoResponse(payload) {
-  const base = (seed) => {
-    const s = Math.abs(seed % 7);
-    const demand = [-3.2, -1.8, 0.4, 1.2, 2.5, -0.9, 3.1][s];
-    const cost   = [ 1.0,  0.6, 0.2, -0.4, -1.1, 0.8, -0.2][s];
-    const m_bps  = [ -50,  -20,  10,   30,   60, -15,   25][s];
-    return { demand_pct: demand, cost_pct: cost, margin_bps: m_bps };
-  };
+  // Deterministic, friendly fallback when no key / API error
   const seed =
     (payload?.event || "x").length +
     (payload?.geo || "y").length +
     (payload?.naics || "z").length;
-  const kp = base(seed);
+
+  const idx = Math.abs(seed) % 7;
+  const demand = [-3.2, -1.8, 0.4, 1.2, 2.5, -0.9, 3.1][idx];
+  const cost   = [ 1.0,  0.6, 0.2, -0.4, -1.1, 0.8, -0.2][idx];
+  const m_bps  = [ -50,  -20,  10,   30,   60, -15,   25][idx];
 
   return {
     summary: `Indicative impacts for ${payload?.naics || "the industry"} in ${payload?.geo || "the region"} given the described event.`,
-    ...kp,
+    demand_pct: demand,
+    cost_pct: cost,
+    margin_bps: m_bps,
     drivers: [
-      { text: "Input costs shift due to supply & logistics changes.", tone: kp.cost_pct > 0 ? "bad" : "good" },
-      { text: "Local demand reacts to pricing, income, and policy.",    tone: kp.demand_pct >= 0 ? "good" : "warn" },
-      { text: "Margin sensitivity to pass-through and mix.",           tone: kp.margin_bps >= 0 ? "good" : "warn" }
+      { text: "Input costs shift due to supply & logistics changes.", tone: cost > 0 ? "bad" : "good" },
+      { text: "Local demand reacts to pricing, income, and policy.",  tone: demand >= 0 ? "good" : "warn" },
+      { text: "Margin sensitivity to pass-through and mix.",          tone: m_bps >= 0 ? "good" : "warn" }
     ],
     assumptions: [
       "No additional shocks beyond those described.",
@@ -102,21 +102,17 @@ Numbers must be realistic magnitudes (avoid extremes unless justified).
 Do not include any commentary outside the JSON object.
 `;
 
+// ---------- handler ----------
 module.exports = async function handler(req, res) {
   const t0 = Date.now();
   try {
-    if (req.method !== "POST") {
-      return badRequest(res, "Method not allowed", 405);
-    }
-    const contentType = String(req.headers["content-type"] || "");
-    if (!contentType.includes("application/json")) {
-      return badRequest(res, "Content-Type must be application/json");
-    }
+    if (req.method !== "POST") return bad(res, "Method not allowed", 405);
+
+    const ct = String(req.headers["content-type"] || "");
+    if (!ct.includes("application/json")) return bad(res, "Content-Type must be application/json");
 
     const { event, geo, naics, horizon, scenario, extra_factors } = req.body || {};
-    if (!event || !geo || !naics) {
-      return badRequest(res, "Missing required fields: event, geo, naics");
-    }
+    if (!event || !geo || !naics) return bad(res, "Missing required fields: event, geo, naics");
 
     const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
     if (!OPENROUTER_API_KEY) {
@@ -141,7 +137,7 @@ Focus on demand, costs, and EBITDA margin; explain key DRIVERS.
 Provide a compact but informative result.
 ${SCHEMA_HINT}`;
 
-    // OpenRouter chat completions (JSON mode)
+    // --- OpenRouter call (JSON mode) ---
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
 
@@ -157,12 +153,12 @@ ${SCHEMA_HINT}`;
       body: JSON.stringify({
         model: MODEL,
         response_format: { type: "json_object" },
+        temperature: 0.3,
+        max_tokens: 900,
         messages: [
           { role: "system", content: "You are an economic impact forecaster. Be precise, grounded, and concise. Return ONLY valid JSON according to the schema." },
           { role: "user", content: userPrompt }
-        ],
-        temperature: 0.3,
-        max_tokens: 900
+        ]
       })
     }).catch((err) => {
       throw new Error(`OpenRouter request failed: ${err?.message || String(err)}`);
@@ -183,19 +179,19 @@ ${SCHEMA_HINT}`;
       return res.status(200).json(demo);
     }
 
-    // Normalize fields to keep UI safe
+    // Normalize for UI safety
     const out = {
       summary: pick(parsed.summary, ""),
-      demand_pct: toNumber(parsed.demand_pct, 0),
-      cost_pct: toNumber(parsed.cost_pct, 0),
-      margin_bps: Math.round(toNumber(parsed.margin_bps, 0)),
+      demand_pct: num(parsed.demand_pct, 0),
+      cost_pct: num(parsed.cost_pct, 0),
+      margin_bps: Math.round(num(parsed.margin_bps, 0)),
       drivers: Array.isArray(parsed.drivers) ? parsed.drivers.slice(0, 8) : [],
       assumptions: Array.isArray(parsed.assumptions) ? parsed.assumptions.slice(0, 10) : [],
       risks: Array.isArray(parsed.risks) ? parsed.risks.slice(0, 10) : [],
       local_signals: Array.isArray(parsed.local_signals) ? parsed.local_signals.slice(0, 10) : [],
       time_path: Array.isArray(parsed.time_path) ? parsed.time_path.slice(0, 6) : [],
       actions: Array.isArray(parsed.actions) ? parsed.actions.slice(0, 10) : [],
-      confidence: Math.max(0, Math.min(1, toNumber(parsed.confidence, 0.7))),
+      confidence: Math.max(0, Math.min(1, num(parsed.confidence, 0.7))),
       meta: { ...(parsed.meta || {}), source: "openrouter", latency_ms: Date.now() - t0 }
     };
 
