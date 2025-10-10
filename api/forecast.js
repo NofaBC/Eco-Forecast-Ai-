@@ -1,205 +1,198 @@
 // api/forecast.js
-// EcoForecast AI™ — Forecast endpoint (Node/JS, Vercel serverless)
-//
-// ENV (Vercel → Project → Settings → Environment Variables):
-//   OPENROUTER_API_KEY = sk-or-...   (required for live AI; fallback works without)
-// Optional (nice-to-have for OpenRouter analytics/TOS):
-//   OR_SITE_URL  = https://eco-forecast-ai.vercel.app
-//   OR_APP_NAME  = EcoForecast AI
-//
-// INPUT (POST JSON):
-//   { event, geo, naics, horizon, scenario, extra_factors }
-//
-// OUTPUT (JSON):
-//   { summary, demand_pct, cost_pct, margin_bps, drivers[], assumptions[], risks[],
-//     local_signals[], time_path[], actions[], confidence, meta:{source, latency_ms} }
+// Enhanced Business Insight detail sections for Full view
 
-const MODEL = "openai/gpt-4o-mini"; // fast + inexpensive
-const TIMEOUT_MS = 25000;
+const MODEL = process.env.OPENROUTER_MODEL || "openrouter/auto";
 
-// ---------- helpers ----------
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-function bad(res, msg, code = 400) { return res.status(code).json({ error: msg }); }
-function pick(v, def) { return v === undefined || v === null ? def : v; }
-function num(x, d = 0) { const n = Number(x); return Number.isFinite(n) ? n : d; }
+async function callLLM(prompt) {
+  const key = process.env.OPENROUTER_API_KEY;
+  if (!key) throw new Error("Missing OPENROUTER_API_KEY");
 
-function safeJSON(text) {
-  try {
-    const cleaned = String(text || "")
-      .trim()
-      .replace(/^```json/i, "```")
-      .replace(/^```/, "")
-      .replace(/```$/, "");
-    return JSON.parse(cleaned);
-  } catch { return null; }
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${key}`,
+      "HTTP-Referer": process.env.SITE_URL || "https://eco-forecast-ai.vercel.app",
+      "X-Title": "EcoForecast AI"
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.4,
+    }),
+  });
+
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`OpenRouter error: ${res.status} ${t}`);
+  }
+  const json = await res.json();
+  const content = json.choices?.[0]?.message?.content || "{}";
+  return content;
 }
 
-function demoResponse(payload) {
-  // Deterministic, friendly fallback when no key / API error
-  const seed =
-    (payload?.event || "x").length +
-    (payload?.geo || "y").length +
-    (payload?.naics || "z").length;
+// Safe JSON parse with fallback
+function safeParse(s) {
+  try { return JSON.parse(s); } catch { return {}; }
+}
+function num(n, d = 0) {
+  const v = Number(n);
+  return Number.isFinite(v) ? v : d;
+}
+function clipPct(v) {
+  // keep % within sensible demo bounds to avoid wild swings
+  return Math.max(-40, Math.min(40, num(v, 0)));
+}
+function clipBps(v) { return Math.max(-2000, Math.min(2000, num(v, 0))); }
 
-  const idx = Math.abs(seed) % 7;
-  const demand = [-3.2, -1.8, 0.4, 1.2, 2.5, -0.9, 3.1][idx];
-  const cost   = [ 1.0,  0.6, 0.2, -0.4, -1.1, 0.8, -0.2][idx];
-  const m_bps  = [ -50,  -20,  10,   30,   60, -15,   25][idx];
-
+function baseShape() {
   return {
-    summary: `Indicative impacts for ${payload?.naics || "the industry"} in ${payload?.geo || "the region"} given the described event.`,
-    demand_pct: demand,
-    cost_pct: cost,
-    margin_bps: m_bps,
-    drivers: [
-      { text: "Input costs shift due to supply & logistics changes.", tone: cost > 0 ? "bad" : "good" },
-      { text: "Local demand reacts to pricing, income, and policy.",  tone: demand >= 0 ? "good" : "warn" },
-      { text: "Margin sensitivity to pass-through and mix.",          tone: m_bps >= 0 ? "good" : "warn" }
-    ],
-    assumptions: [
-      "No additional shocks beyond those described.",
-      "Local capacity & labor constraints remain near recent levels."
-    ],
-    risks: [
-      "Broader market volatility changes financing and capex.",
-      "Policy implementation timing differs from expectations."
-    ],
-    local_signals: [
-      "Port/rail bottlenecks, regional fuel prices, and freight rates.",
-      "Local hiring postings / overtime trends."
-    ],
-    time_path: [
-      { t: "0–3m",   note: "Immediate pricing/lead-time effects; customers reassess orders." },
-      { t: "3–12m",  note: "Volumes adjust to new prices; supply routes normalize." },
-      { t: "12–24m", note: "Mix/productivity changes settle; margins stabilize." }
-    ],
-    actions: [
-      "Scenario out pass-through and elasticity by segment.",
-      "Secure alternates for top-3 input risks; pre-negotiate terms."
-    ],
-    confidence: 0.6,
-    meta: { source: "fallback-demo" }
+    demand_pct: 0,
+    cost_pct: 0,
+    margin_bps: 0,
+    drivers: [],
+    explanations_summary: "",
+    explanations_full: "",
+    detail_blocks: {
+      assumptions: [],
+      risks: [],
+      local_signals: [],
+      time_path: [],
+      suggested_actions: []
+    },
+    sources_note: "",
+    caveats: "",
+    confidence: 0.7
   };
 }
 
-const SCHEMA_HINT = `
-Return STRICT JSON with exactly:
-{
-  "summary": string,
-  "demand_pct": number,
-  "cost_pct": number,
-  "margin_bps": number,
-  "drivers": [ { "text": string, "tone": "good"|"bad"|"warn" } ],
-  "assumptions": [string],
-  "risks": [string],
-  "local_signals": [string],
-  "time_path": [ { "t": "0–3m"|"3–12m"|"12–24m", "note": string } ],
-  "actions": [string],
-  "confidence": number,
-  "meta": { "source": "openrouter" }
-}
-Numbers must be realistic magnitudes (avoid extremes unless justified).
-Do not include any commentary outside the JSON object.
-`;
-
-// ---------- handler ----------
 module.exports = async function handler(req, res) {
-  const t0 = Date.now();
   try {
-    if (req.method !== "POST") return bad(res, "Method not allowed", 405);
-
-    const ct = String(req.headers["content-type"] || "");
-    if (!ct.includes("application/json")) return bad(res, "Content-Type must be application/json");
-
-    const { event, geo, naics, horizon, scenario, extra_factors } = req.body || {};
-    if (!event || !geo || !naics) return bad(res, "Missing required fields: event, geo, naics");
-
-    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-    if (!OPENROUTER_API_KEY) {
-      const demo = demoResponse(req.body);
-      demo.meta = { ...(demo.meta || {}), latency_ms: Date.now() - t0 };
-      return res.status(200).json(demo);
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "Method not allowed" });
     }
 
-    const site = process.env.OR_SITE_URL || "https://eco-forecast-ai.vercel.app";
-    const app  = process.env.OR_APP_NAME || "EcoForecast AI";
+    const { event, geo, naics, horizon = "medium", scenario = "Base", extra_factors = "", detail = "summary" } = req.body || {};
 
-    const userPrompt =
-`Event: ${event}
+    if (!event || !geo || !naics) {
+      return res.status(400).json({ error: "Missing required fields: event, geo, naics" });
+    }
+
+    const horizonMonths = horizon === "short" ? 3 : horizon === "long" ? 24 : 12;
+    const plan = "business"; // keep simple; later tie to billing/current
+
+    const schema = `
+Return ONLY a JSON object with these fields:
+{
+  "demand_pct": number,           // -40..40 (%)
+  "cost_pct": number,             // -40..40 (%)
+  "margin_bps": number,           // -2000..2000 (basis points)
+  "drivers": [ { "text": string, "tone": "good"|"bad"|"warn" } ],
+  "explanations_summary": string, // 2-5 sentences, non-hype, plain English
+  "explanations_full": string,    // 150-250 words executive brief
+  "detail_blocks": {
+    "assumptions": string[],      // ≤5 bullets, short phrases
+    "risks": string[],            // ≤5 bullets
+    "local_signals": string[],    // ≤5 bullets
+    "time_path": string[],        // ≤5 bullets (0–3m, 3–12m, 12–24m)
+    "suggested_actions": string[] // ≤5 bullets, practical
+  },
+  "sources_note": string,         // 1-2 sentences, e.g., data families referenced (no live links)
+  "caveats": string,              // 1-2 sentences of uncertainty/limits
+  "confidence": number            // 0..1
+}
+    `.trim();
+
+    const prompt = `
+You are EcoForecast AI. Analyze the following event's economic impact for a city and industry, suitable for a Business Insight brief.
+
+Event: ${event}
 City/Region: ${geo}
 Industry (NAICS or keyword): ${naics}
-Horizon: ${horizon || "medium (3–12m)"}
-Scenario: ${scenario || "Base"}
-Extra factors: ${extra_factors || "none"}
+Horizon (months): ${horizonMonths}
+Scenario: ${scenario}
+Extra factors to consider (optional): ${extra_factors}
 
-Generate an economic impact forecast tailored to the city & industry.
-Focus on demand, costs, and EBITDA margin; explain key DRIVERS.
-Provide a compact but informative result.
-${SCHEMA_HINT}`;
+Constraints:
+- Be local and industry-specific. No political opinions or financial advice.
+- Keep numbers realistic for ${horizonMonths} months.
+- Drivers in neutral language; tones = good/bad/warn.
+- ${plan === "business" ? "Keep explanations clear and compact." : ""}
 
-    // --- OpenRouter call (JSON mode) ---
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+${schema}
+`.trim();
 
-    const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      signal: ctrl.signal,
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-        "HTTP-Referer": site,
-        "X-Title": app
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        response_format: { type: "json_object" },
-        temperature: 0.3,
-        max_tokens: 900,
-        messages: [
-          { role: "system", content: "You are an economic impact forecaster. Be precise, grounded, and concise. Return ONLY valid JSON according to the schema." },
-          { role: "user", content: userPrompt }
-        ]
-      })
-    }).catch((err) => {
-      throw new Error(`OpenRouter request failed: ${err?.message || String(err)}`);
-    }).finally(() => clearTimeout(timer));
+    // Call model (or skip and return a deterministic mock if no key)
+    let out = baseShape();
 
-    if (!resp.ok) {
-      const txt = await resp.text().catch(() => "");
-      throw new Error(`OpenRouter HTTP ${resp.status}: ${txt}`);
+    if (process.env.OPENROUTER_API_KEY) {
+      const content = await callLLM(prompt);
+      const parsed = safeParse(content);
+
+      out.demand_pct = clipPct(parsed.demand_pct);
+      out.cost_pct = clipPct(parsed.cost_pct);
+      out.margin_bps = clipBps(parsed.margin_bps);
+      out.drivers = Array.isArray(parsed.drivers) ? parsed.drivers.slice(0, 8) : [];
+
+      out.explanations_summary = String(parsed.explanations_summary || "").slice(0, 1200);
+      out.explanations_full = String(parsed.explanations_full || "").slice(0, 2400);
+
+      const db = parsed.detail_blocks || {};
+      out.detail_blocks = {
+        assumptions: (db.assumptions || []).slice(0, 5),
+        risks: (db.risks || []).slice(0, 5),
+        local_signals: (db.local_signals || []).slice(0, 5),
+        time_path: (db.time_path || []).slice(0, 5),
+        suggested_actions: (db.suggested_actions || []).slice(0, 5),
+      };
+
+      out.sources_note = String(parsed.sources_note || "");
+      out.caveats = String(parsed.caveats || "");
+      out.confidence = Math.max(0, Math.min(1, num(parsed.confidence, 0.75)));
+    } else {
+      // Fallback mock if key missing (keeps demo alive)
+      out = {
+        ...out,
+        demand_pct: -5,
+        cost_pct: 10,
+        margin_bps: -50,
+        drivers: [
+          { text: "Reduced discretionary demand from households.", tone: "bad" },
+          { text: "Input costs rise due to supply friction.", tone: "warn" },
+          { text: "Temporary substitution to local providers offsets losses.", tone: "good" }
+        ],
+        explanations_summary: "Near-term demand softens while costs rise, compressing margins. Local substitution and operational adjustments partially mitigate.",
+        explanations_full: "In the base case, demand dips as households and firms defer spending, while input costs rise due to logistics tightness and policy uncertainty. Providers that reprice selectively and rebalance mix toward resilient segments limit the margin impact. Exposure varies by sub-industry and import intensity; firms with flexible contracts, diversified suppliers, and local alternatives fare best.",
+        detail_blocks: {
+          assumptions: ["Shock begins within 1–2 months", "Policy stance stays unchanged", "FX volatility contained"],
+          risks: ["Longer disruption to logistics", "Tighter credit conditions", "Stronger-than-expected price sensitivity"],
+          local_signals: ["Foot traffic trends", "Job postings / hours worked", "Supplier lead-time quotes"],
+          time_path: ["0–3m: demand pullback, cost up", "3–12m: partial normalization", "12–24m: margins stabilize"],
+          suggested_actions: ["Reprice selectively", "Secure secondary suppliers", "Prioritize resilient customer segments"]
+        },
+        sources_note: "Patterns inferred from historical local demand, input cost pass-through, and procurement cycle sensitivity.",
+        caveats: "City-level impacts vary with industry mix and baseline capacity; results are directional, not investment advice.",
+        confidence: 0.78
+      };
     }
 
-    const data = await resp.json();
-    const raw = data?.choices?.[0]?.message?.content ?? "";
-    const parsed = safeJSON(raw);
+    // If client asked only summary, we can trim payload a bit (still return all fields for simplicity)
+    const t0 = Date.now();
+    return res.status(200).json({
+      ...out,
+      meta: {
+        geo_canonical: geo,
+        naics_canonical: String(naics),
+        horizon_months: horizonMonths,
+        scenario,
+        latency_ms: Date.now() - t0,
+        source: process.env.OPENROUTER_API_KEY ? "openrouter" : "mock"
+      }
+    });
 
-    if (!parsed) {
-      const demo = demoResponse(req.body);
-      demo.meta = { ...(demo.meta || {}), source: "fallback-demo", latency_ms: Date.now() - t0 };
-      return res.status(200).json(demo);
-    }
-
-    // Normalize for UI safety
-    const out = {
-      summary: pick(parsed.summary, ""),
-      demand_pct: num(parsed.demand_pct, 0),
-      cost_pct: num(parsed.cost_pct, 0),
-      margin_bps: Math.round(num(parsed.margin_bps, 0)),
-      drivers: Array.isArray(parsed.drivers) ? parsed.drivers.slice(0, 8) : [],
-      assumptions: Array.isArray(parsed.assumptions) ? parsed.assumptions.slice(0, 10) : [],
-      risks: Array.isArray(parsed.risks) ? parsed.risks.slice(0, 10) : [],
-      local_signals: Array.isArray(parsed.local_signals) ? parsed.local_signals.slice(0, 10) : [],
-      time_path: Array.isArray(parsed.time_path) ? parsed.time_path.slice(0, 6) : [],
-      actions: Array.isArray(parsed.actions) ? parsed.actions.slice(0, 10) : [],
-      confidence: Math.max(0, Math.min(1, num(parsed.confidence, 0.7))),
-      meta: { ...(parsed.meta || {}), source: "openrouter", latency_ms: Date.now() - t0 }
-    };
-
-    return res.status(200).json(out);
   } catch (err) {
-    console.error("forecast error:", err?.message || err);
-    const demo = demoResponse((req || {}).body || {});
-    demo.meta = { ...(demo.meta || {}), error: String(err?.message || err), latency_ms: Date.now() - t0 };
-    return res.status(200).json(demo);
+    console.error("forecast error:", err);
+    return res.status(500).json({ error: "Failed to generate forecast" });
   }
 };
