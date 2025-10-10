@@ -32,10 +32,10 @@
     .kpi .u{font-size:12px;color:var(--muted)}
     .good{color:var(--good)} .bad{color:var(--bad)} .warn{color:var(--warn)}
     .muted{color:var(--muted)}
+    .tiny{font-size:12px}
     .inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .right{display:flex;gap:8px;align-items:center}
     .pill{display:inline-flex;gap:6px;align-items:center;border:1px solid #2a3567;color:var(--muted);border-radius:999px;padding:6px 10px;font-size:12px}
-    .tiny{font-size:12px}
     .usage{font-size:12px;color:var(--muted)}
     .divider{height:1px;background:#223;opacity:.5;margin:12px 0}
     .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
@@ -43,6 +43,7 @@
     .price{display:flex;gap:6px;align-items:flex-end}
     .price .amt{font-size:26px;font-weight:800}
     .save{font-size:11px;color:var(--good);border:1px solid rgba(53,199,89,.35);border-radius:999px;padding:2px 8px;margin-left:6px}
+    #moreDetails{white-space:pre-wrap}
     @media (max-width:980px){.grid2{grid-template-columns:1fr}.grid3{grid-template-columns:1fr}}
   </style>
 </head>
@@ -153,7 +154,7 @@
 
       <h3 style="margin:10px 0 6px">Top Drivers</h3>
       <ul id="drivers" style="margin:0 0 10px 16px"></ul>
-      <div id="moreDetails" class="muted tiny" style="white-space:pre-wrap"></div>
+      <div id="moreDetails" class="muted tiny"></div>
       <div id="conf" class="muted tiny" style="margin-top:8px"></div>
       <div class="divider"></div>
       <h3 style="margin:0 0 8px">Impact Visual</h3>
@@ -224,7 +225,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
 <script>
-  // 🔐 Your Firebase web config (Eco Forecast Ai project)
+  // 🔐 Firebase config (Eco Forecast Ai project)
   const firebaseConfig = {
     apiKey: "AIzaSyBBfrQcMn5Hmt2H5EbMh06LHmbCvtUZrU8",
     authDomain: "eco-forecast-ai.firebaseapp.com",
@@ -252,7 +253,7 @@
     btn.addEventListener('click',()=>{$('event').value = presetsMap[btn.dataset.preset] || ''});
   });
 
-  // Small NAICS helper
+  // NAICS helper
   const naicsMap = [
     {k:['restaurant','food service','dining'],v:'7225 — Restaurants'},
     {k:['homebuilding','residential build','construction'],v:'2361 — Residential Building Construction'},
@@ -281,58 +282,36 @@
       btn.onclick = showSignInMenu;
     }
   }
-
   function showSignInMenu(){
     const pick = prompt('Sign in:\n1 = Google\n2 = Email/Password\n(press Cancel to close)');
     if(pick === '1') signInWithGoogle();
     else if(pick === '2') signInWithEmailPrompt();
   }
-
   firebase.auth().onAuthStateChanged(async (user)=>{
     currentUser = user || null;
     setAccountUI(currentUser);
-    await refreshUsage(); // show usage on load
+    await refreshUsage();
   });
-
-  // Surface redirect errors
   firebase.auth().getRedirectResult().catch(err=>{
     console.error('[auth] redirect error:',err);
     alert('Sign-in redirect error: '+(err.message||err.code));
   });
-
   async function signInWithGoogle(){
     const provider = new firebase.auth.GoogleAuthProvider();
-    try {
-      await firebase.auth().signInWithRedirect(provider);
-    } catch(err){
-      console.error('[auth] Google sign-in failed:',err);
-      alert('Google sign-in failed: '+(err.message||err.code));
-    }
+    try { await firebase.auth().signInWithRedirect(provider); }
+    catch(err){ console.error('[auth] Google sign-in failed:',err); alert('Google sign-in failed: '+(err.message||err.code)); }
   }
-
   async function signInWithEmailPrompt(){
     try{
       const email=prompt('Email:'); if(!email) return;
       const pass=prompt('Create or enter your password (min 6 chars):'); if(!pass) return;
-      try{
-        await firebase.auth().createUserWithEmailAndPassword(email,pass);
-      }catch(e){
-        if(e.code==='auth/email-already-in-use'){
-          await firebase.auth().signInWithEmailAndPassword(email,pass);
-        }else{ throw e; }
-      }
-    }catch(err){
-      console.error('[auth] Email sign-in failed:',err);
-      alert('Email sign-in failed: '+(err.message||err.code));
-    }
+      try{ await firebase.auth().createUserWithEmailAndPassword(email,pass); }
+      catch(e){ if(e.code==='auth/email-already-in-use'){ await firebase.auth().signInWithEmailAndPassword(email,pass); } else { throw e; } }
+    }catch(err){ console.error('[auth] Email sign-in failed:',err); alert('Email sign-in failed: '+(err.message||err.code)); }
   }
 
   // ---------- Usage API ----------
-  async function getIdToken(){
-    if(!currentUser) return null;
-    return await currentUser.getIdToken();
-  }
-
+  async function getIdToken(){ if(!currentUser) return null; return await currentUser.getIdToken(); }
   async function refreshUsage(){
     try{
       const token = await getIdToken();
@@ -341,86 +320,66 @@
       if(!res.ok) throw new Error('usage get failed');
       const {count,cap} = await res.json();
       usageEl.textContent = `Usage this month: ${count}/${cap} forecasts`;
-    }catch(e){
-      // fallback text
-      usageEl.textContent = 'Usage: (local) —';
-    }
+    }catch{ usageEl.textContent = 'Usage: (local) —'; }
   }
-
   async function bumpUsage(){
     try{
-      const token = await getIdToken();
-      if(!token) return; // anonymous demo – skip server counter
+      const token = await getIdToken(); if(!token) return true;
       const res = await fetch('/api/usage/incr',{method:'POST',headers:{Authorization:'Bearer '+token}});
-      if(res.status===402){
-        const j = await res.json();
-        alert(`Monthly forecast quota exceeded (${j.count}/${j.cap}).`);
-        return false;
-      }
+      if(res.status===402){ const j = await res.json(); alert(`Monthly forecast quota exceeded (${j.count}/${j.cap}).`); return false; }
       if(!res.ok) throw new Error('usage incr failed');
-      await refreshUsage();
-      return true;
-    }catch(e){
-      // ignore; local fallback still works
-      return true;
-    }
+      await refreshUsage(); return true;
+    }catch{ return true; }
   }
 
-  // ---------- Forecast ----------
-  const chart = $('impactChart').getContext('2d');
-  function drawBar(x,w,y,h,color='#6ea8fe'){ // minimal bar draw
-    chart.fillStyle=color; chart.fillRect(x,y,w,h);
-  }
-  function clearChart(){
-    chart.clearRect(0,0,chart.canvas.width,chart.canvas.height);
-  }
+  // ---------- Chart ----------
+  const ctx = $('impactChart').getContext('2d');
+  function drawBar(x,w,y,h,color='#6ea8fe'){ ctx.fillStyle=color; ctx.fillRect(x,y,w,h); }
+  function clearChart(){ ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height); }
 
-  function fmtPct(x){
-    if(x===undefined||x===null||isNaN(x)) return '—';
-    const s = Number(x).toFixed(1);
-    return (x>0?'+':'')+s+'%';
-  }
+  function fmtPct(x){ if(x===undefined||x===null||isNaN(x)) return '—'; const s=Number(x).toFixed(1); return (x>0?'+':'')+s+'%'; }
 
   function renderForecast(data){
     $('kpiDemand').textContent = fmtPct(data.demand_pct);
     $('kpiCosts').textContent  = fmtPct(data.cost_pct);
     $('kpiMargin').textContent = (data.margin_bps>0?'+':'') + (data.margin_bps||0) + ' bps';
 
-    const drivers = $('drivers');
-    drivers.innerHTML = '';
-    (data.drivers||[]).slice(0,6).forEach(d=>{
-      const li=document.createElement('li');
-      li.textContent = d.text;
-      if(d.tone==='good') li.className='good';
-      if(d.tone==='bad')  li.className='bad';
-      if(d.tone==='warn') li.className='warn';
+    const drivers = $('drivers'); drivers.innerHTML = '';
+    (data.drivers||[]).slice(0,8).forEach(d=>{
+      const li=document.createElement('li'); li.textContent=d.text;
+      if(d.tone==='good') li.className='good'; if(d.tone==='bad') li.className='bad'; if(d.tone==='warn') li.className='warn';
       drivers.appendChild(li);
     });
 
     const mode = document.querySelector('input[name="detailMode"]:checked')?.value || 'summary';
-    $('moreDetails').textContent = mode==='full' ? (data.explanations_full||'') : (data.explanations_summary||'');
+    const blocks = data.detail_blocks||{};
+    const mk = (title, arr)=> (arr && arr.length) ? `\n\n${title}\n• ${arr.join('\n• ')}` : '';
+    const fullText =
+      (data.explanations_full || data.explanations_summary || '') +
+      mk('Assumptions', blocks.assumptions) +
+      mk('Risks', blocks.risks) +
+      mk('Local Signals', blocks.local_signals) +
+      mk('Time Path', blocks.time_path) +
+      mk('Suggested Actions', blocks.suggested_actions) +
+      (data.sources_note ? `\n\nSources: ${data.sources_note}` : '') +
+      (data.caveats ? `\n\nCaveats: ${data.caveats}` : '');
+
+    $('moreDetails').textContent = mode==='full' ? fullText : (data.explanations_summary || '');
+
     $('conf').textContent = 'Confidence: ' + Math.round((data.confidence||0)*100) + '%';
 
-    // simple bar viz: demand vs costs vs margin (scaled)
+    // simple bar viz
     clearChart();
-    const baseY = 120, barW = 70, gap = 30, x0 = 60;
-    const scale = 3; // px per %
-    const toHeight = v => Math.min(60, Math.abs(v)*scale);
+    const baseY = 120, barW = 70, gap = 30, x0 = 60, scale = 3;
+    const toH = v => Math.min(60, Math.abs(v)*scale);
     const bars = [
-      {label:'Demand', v:data.demand_pct||0},
-      {label:'Costs', v:data.cost_pct||0},
-      {label:'Margin', v:(data.margin_bps||0)/100}, // convert bps to %
+      {v:data.demand_pct||0}, {v:data.cost_pct||0}, {v:(data.margin_bps||0)/100}
     ];
-    bars.forEach((b,i)=>{
-      const h=toHeight(b.v), up=b.v>=0;
-      const x=x0 + i*(barW+gap), y= up? baseY-h : baseY;
-      drawBar(x,barW,y,h, up?'#3ba76c':'#e25d5d');
-    });
+    bars.forEach((b,i)=>{ const h=toH(b.v), up=b.v>=0; const x=x0+i*(barW+gap), y= up? baseY-h : baseY; drawBar(x,barW,y,h, up?'#3ba76c':'#e25d5d'); });
   }
 
   async function runForecast(){
-    statusEl.textContent = 'Running forecast…';
-    $('run').disabled=true;
+    statusEl.textContent = 'Running forecast…'; $('run').disabled=true;
 
     const naicsRaw = $('naics').value.trim();
     const naics = naicsRaw.match(/^\d{4}/)?.[0] || naicsRaw;
@@ -443,11 +402,8 @@
       await bumpUsage();
       statusEl.textContent = 'Done.';
     }catch(e){
-      console.error(e);
-      statusEl.textContent = 'Something went wrong. Try again.';
-    }finally{
-      $('run').disabled=false;
-    }
+      console.error(e); statusEl.textContent = 'Something went wrong. Try again.';
+    }finally{ $('run').disabled=false; }
   }
 
   $('run').addEventListener('click', runForecast);
@@ -464,31 +420,25 @@
   });
 
   // ---------- CSV / PDF ----------
-  function makeCSV(data){
+  function makeCSVFromPage(){
     const rows = [
       ['Demand %','Costs %','EBITDA margin (bps)','Confidence'],
-      [data.demand_pct, data.cost_pct, data.margin_bps, Math.round((data.confidence||0)*100)+'%'],
+      [ $('kpiDemand').textContent, $('kpiCosts').textContent, $('kpiMargin').textContent, $('conf').textContent ],
       [],
       ['Top Drivers'],
-      ...(data.drivers||[]).map(d=>[d.text, d.tone||''])
+      ...Array.from(document.querySelectorAll('#drivers li')).map(li=>[li.textContent]),
+      [],
+      ['Details'],
+      [ $('moreDetails').textContent ]
     ];
     return rows.map(r=>r.map(x=>`"${String(x??'').replace(/"/g,'""')}"`).join(',')).join('\n');
   }
 
   $('csvBtn').addEventListener('click',()=>{
-    const data = {
-      demand_pct: $('kpiDemand').textContent,
-      cost_pct: $('kpiCosts').textContent,
-      margin_bps: $('kpiMargin').textContent,
-      confidence: $('conf').textContent,
-      drivers: Array.from(document.querySelectorAll('#drivers li')).map(li=>({text:li.textContent}))
-    };
-    const csv = makeCSV(data);
+    const csv = makeCSVFromPage();
     const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href=url; a.download='eco-forecast.csv'; a.click();
-    URL.revokeObjectURL(url);
+    const a = document.createElement('a'); a.href=url; a.download='eco-forecast.csv'; a.click(); URL.revokeObjectURL(url);
   });
 
   $('pdfBtn').addEventListener('click',()=>{
@@ -500,6 +450,7 @@
         h1{margin:0 0 8px}
         .muted{color:#555}
         ul{margin:8px 0 0 18px}
+        pre{white-space:pre-wrap}
       </style>
       </head><body>
       <h1>EcoForecast AI™ — Brief</h1>
@@ -512,12 +463,10 @@
       <h3>Top Drivers</h3>
       <ul>${Array.from(document.querySelectorAll('#drivers li')).map(li=>`<li>${li.textContent}</li>`).join('')}</ul>
       <h3>Details</h3>
-      <pre style="white-space:pre-wrap">${$('moreDetails').textContent}</pre>
+      <pre>${$('moreDetails').textContent}</pre>
       </body></html>
     `);
-    w.document.close();
-    w.focus();
-    w.print();
+    w.document.close(); w.focus(); w.print();
   });
 </script>
 </body>
