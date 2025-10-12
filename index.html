@@ -26,7 +26,9 @@
     textarea{min-height:96px;resize:vertical}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-    .chip{border:1px solid #2a3567;background:#0e1530;padding:6px 10px;border-radius:999px;font-size:12px;cursor:pointer}
+    /* ✅ Chips now have white text for contrast */
+    .chip{border:1px solid #2a3567;background:#0e1530;color:#fff;padding:6px 10px;border-radius:999px;font-size:12px;cursor:pointer}
+    .chip:hover{background:#15204a}
     .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0 8px}
     .kpi .v{font-size:22px;font-weight:800}
     .kpi .u{font-size:12px;color:var(--muted)}
@@ -171,6 +173,7 @@
     <h2 style="margin:0 0 8px">Pricing & Onboarding</h2>
     <div class="pill">Note: We’re in Demo · Business Insight is available now. Analyst Pro and Enterprise are coming soon.</div>
     <div class="grid3" style="margin-top:12px">
+      <!-- Business Insight -->
       <article class="card plan">
         <span class="muted tiny">EcoForecast AI™</span>
         <h4>Business Insight</h4>
@@ -180,11 +183,13 @@
           <li>10 forecasts/month</li><li>Drivers & confidence</li><li>Downloadable briefs</li>
         </ul>
         <div class="inline">
-          <a class="btn" href="mailto:waitlist_ai@nofabusinessconsulting.com?subject=EcoForecast%20AI%20Waitlist&body=Which%20plan%20are%20you%20interested%20in%3F%20(Business%20Insight%2C%20Analyst%20Pro%2C%20Enterprise)%0A">Join Waitlist</a>
+          <!-- ✅ Changed from “Join Waitlist” to “Start Now” -->
+          <a class="btn" href="#forecast" aria-label="Start now">Start Now</a>
           <a class="btn secondary" href="mailto:info@nofabusinessconsulting.com?subject=EcoForecast%20AI%20Demo">Book a Demo</a>
         </div>
       </article>
 
+      <!-- Analyst Pro -->
       <article class="card plan">
         <span class="muted tiny">EcoForecast AI™</span>
         <h4>Analyst Pro</h4>
@@ -195,10 +200,11 @@
         </ul>
         <div class="inline">
           <a class="btn" href="mailto:waitlist_ai@nofabusinessconsulting.com?subject=EcoForecast%20AI%20Waitlist&body=Interested%20plan%3A%20Analyst%20Pro%0A">Join Waitlist</a>
-          <a class="btn secondary" href="mailto:info@nofabusinessconsulting.com?subject=EcoForecast%20AI%20Pro%20Demo">Contact Sales</a>
+          <a class="btn secondary" href="mailto:info@nofabusinessconsulting.com?subject=EcoForecast%20AI%20Pro%20Inquiry">Contact Sales</a>
         </div>
       </article>
 
+      <!-- Enterprise -->
       <article class="card plan">
         <span class="muted tiny">EcoForecast AI™</span>
         <h4>Enterprise / Investor</h4>
@@ -208,8 +214,9 @@
           <li>Custom model tuning</li><li>API & BI integrations</li><li>Backtesting & validation</li>
         </ul>
         <div class="inline">
-          <a class="btn" href="mailto:waitlist_ai@nofabusinessconsulting.com?subject=EcoForecast%20AI%20Waitlist&body=Interested%20plan%3A%20Enterprise%0A">Join Waitlist</a>
-          <a class="btn secondary" href="mailto:info@nofabusinessconsulting.com?subject=EcoForecast%20AI%20Enterprise%20Inquiry">Contact Sales</a>
+          <!-- ✅ Primary is now Contact Sales; waitlist as secondary -->
+          <a class="btn" href="mailto:info@nofabusinessconsulting.com?subject=EcoForecast%20AI%20Enterprise%20Inquiry">Contact Sales</a>
+          <a class="btn secondary" href="mailto:waitlist_ai@nofabusinessconsulting.com?subject=EcoForecast%20AI%20Waitlist&body=Interested%20plan%3A%20Enterprise%0A">Join Waitlist</a>
         </div>
       </article>
     </div>
@@ -225,7 +232,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
 <script>
-  // 🔐 Firebase config (Eco Forecast Ai project)
+  // Firebase config
   const firebaseConfig = {
     apiKey: "AIzaSyBBfrQcMn5Hmt2H5EbMh06LHmbCvtUZrU8",
     authDomain: "eco-forecast-ai.firebaseapp.com",
@@ -237,7 +244,7 @@
   };
   firebase.initializeApp(firebaseConfig);
 
-  // ---------- UI Helpers ----------
+  // Helpers
   const $ = (id) => document.getElementById(id);
   const statusEl = $('status');
   const usageEl = $('usageInfo');
@@ -253,7 +260,6 @@
     btn.addEventListener('click',()=>{$('event').value = presetsMap[btn.dataset.preset] || ''});
   });
 
-  // NAICS helper
   const naicsMap = [
     {k:['restaurant','food service','dining'],v:'7225 — Restaurants'},
     {k:['homebuilding','residential build','construction'],v:'2361 — Residential Building Construction'},
@@ -266,17 +272,13 @@
     const hit=naicsMap.find(x=>x.k.some(w=>t.includes(w))); if(hit) e.target.value=hit.v;
   });
 
-  // ---------- Auth ----------
+  // Auth
   let currentUser = null;
-
   function setAccountUI(user){
     const btn = $('accountBtn');
     if(user){
       btn.textContent = user.email || 'Account';
-      btn.onclick = ()=> {
-        const choice = confirm(`Signed in as ${user.email}\n\nOK = Sign out\nCancel = Close`);
-        if(choice) firebase.auth().signOut();
-      };
+      btn.onclick = ()=>{ if(confirm(`Signed in as ${user.email}\n\nOK = Sign out`)) firebase.auth().signOut(); };
     } else {
       btn.textContent = 'Sign in';
       btn.onclick = showSignInMenu;
@@ -298,7 +300,7 @@
   });
   async function signInWithGoogle(){
     const provider = new firebase.auth.GoogleAuthProvider();
-    try { await firebase.auth().signInWithRedirect(provider); }
+    try{ await firebase.auth().signInWithRedirect(provider); }
     catch(err){ console.error('[auth] Google sign-in failed:',err); alert('Google sign-in failed: '+(err.message||err.code)); }
   }
   async function signInWithEmailPrompt(){
@@ -310,7 +312,7 @@
     }catch(err){ console.error('[auth] Email sign-in failed:',err); alert('Email sign-in failed: '+(err.message||err.code)); }
   }
 
-  // ---------- Usage API ----------
+  // Usage API
   async function getIdToken(){ if(!currentUser) return null; return await currentUser.getIdToken(); }
   async function refreshUsage(){
     try{
@@ -332,7 +334,7 @@
     }catch{ return true; }
   }
 
-  // ---------- Chart ----------
+  // Chart
   const ctx = $('impactChart').getContext('2d');
   function drawBar(x,w,y,h,color='#6ea8fe'){ ctx.fillStyle=color; ctx.fillRect(x,y,w,h); }
   function clearChart(){ ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height); }
@@ -368,13 +370,10 @@
 
     $('conf').textContent = 'Confidence: ' + Math.round((data.confidence||0)*100) + '%';
 
-    // simple bar viz
     clearChart();
     const baseY = 120, barW = 70, gap = 30, x0 = 60, scale = 3;
     const toH = v => Math.min(60, Math.abs(v)*scale);
-    const bars = [
-      {v:data.demand_pct||0}, {v:data.cost_pct||0}, {v:(data.margin_bps||0)/100}
-    ];
+    const bars = [{v:data.demand_pct||0},{v:data.cost_pct||0},{v:(data.margin_bps||0)/100}];
     bars.forEach((b,i)=>{ const h=toH(b.v), up=b.v>=0; const x=x0+i*(barW+gap), y= up? baseY-h : baseY; drawBar(x,barW,y,h, up?'#3ba76c':'#e25d5d'); });
   }
 
@@ -419,7 +418,7 @@
     window.scrollTo({top:0,behavior:'smooth'});
   });
 
-  // ---------- CSV / PDF ----------
+  // CSV / PDF
   function makeCSVFromPage(){
     const rows = [
       ['Demand %','Costs %','EBITDA margin (bps)','Confidence'],
@@ -433,14 +432,12 @@
     ];
     return rows.map(r=>r.map(x=>`"${String(x??'').replace(/"/g,'""')}"`).join(',')).join('\n');
   }
-
   $('csvBtn').addEventListener('click',()=>{
     const csv = makeCSVFromPage();
     const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href=url; a.download='eco-forecast.csv'; a.click(); URL.revokeObjectURL(url);
   });
-
   $('pdfBtn').addEventListener('click',()=>{
     const w = window.open('', '_blank');
     w.document.write(`
