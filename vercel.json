@@ -1,11 +1,14 @@
 {
   "version": 2,
-  "functions": { "api/*.js": { "runtime": "nodejs18.x" } },
+  "functions": {
+    "api/*.js": {
+      "runtime": "vercel-node@18.0.0"
+    }
+  },
   "routes": [
     { "src": "/api/history/(save|list)", "dest": "/api/history.js?action=$1" },
     { "src": "/api/plan/(get|set)", "dest": "/api/plan.js?action=$1" },
     { "src": "/api/scenario/(save|list|get)", "dest": "/api/scenario.js?action=$1" },
-
     { "src": "/api/(.*)", "dest": "/api/$1" },
     { "src": "/(.*)", "dest": "/web/index.html" }
   ]
