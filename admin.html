@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>EcoForecast AI™ Admin</title>
+  <style>
+    body { background:#111; color:#fff; font-family:Arial; padding:20px; }
+    input, button { padding:8px; margin:4px; }
+    .log { margin-top:10px; white-space:pre-wrap; }
+  </style>
+</head>
+<body>
+  <h2>EcoForecast AI™ Admin Console</h2>
+  <p>Upgrade or downgrade users.</p>
+  <input id="uid" placeholder="User UID" />
+  <select id="plan">
+    <option value="business">Business</option>
+    <option value="pro">Pro</option>
+    <option value="enterprise">Enterprise</option>
+  </select>
+  <button onclick="updatePlan()">Set Plan</button>
+  <div class="log" id="log"></div>
+
+  <script>
+    async function updatePlan() {
+      const uid = document.getElementById('uid').value;
+      const plan = document.getElementById('plan').value;
+      const adminUid = localStorage.getItem('ADMIN_UID');
+      const res = await fetch('/api/plan/set', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-uid': adminUid },
+        body: JSON.stringify({ uid, plan })
+      });
+      const data = await res.json();
+      document.getElementById('log').innerText = JSON.stringify(data, null, 2);
+    }
+  </script>
+</body>
+</html>
