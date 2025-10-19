@@ -1,470 +1,210 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>EcoForecast AI™ — Event-to-Economy Forecaster</title>
-  <meta name="description" content="Forecast the local economic impact of wars, market shocks, weather, regime changes, and new policies on cities and businesses."/>
+  <meta name="description" content="Forecast the local economic impact of wars, market shocks, weather, regime changes, and new policies on cities and businesses." />
   <style>
-    :root{--bg:#0b1020;--card:#121a35;--edge:#1c254b;--text:#e8ecff;--muted:#aab3d9;--accent:#6ea8fe;--good:#35c759;--bad:#ff453a;--warn:#ffd60a}
+    :root {
+      --bg:#0b1020; --card:#121a35; --edge:#1c254b;
+      --text:#e8ecff; --muted:#aab3d9; --accent:#6ea8fe;
+      --good:#35c759; --bad:#ff453a; --warn:#ffd60a;
+    }
     *{box-sizing:border-box}
     body{margin:0;font-family:Inter,system-ui,Segoe UI,Arial;background:linear-gradient(180deg,#0b1020,#0a0f1c);color:var(--text)}
-    a{color:var(--accent);text-decoration:none}
-    header{padding:18px 16px;border-bottom:1px solid var(--edge);background:rgba(10,15,28,.6);backdrop-filter:saturate(1.2) blur(8px);position:sticky;top:0;z-index:20}
-    .wrap{max-width:1100px;margin:0 auto}
+    a{color:var(--accent)}
+    header{padding:28px 20px;border-bottom:1px solid var(--edge);background:rgba(10,15,28,.6);backdrop-filter:saturate(1.2) blur(8px);position:sticky;top:0;z-index:20}
+    .wrap{max-width:1080px;margin:0 auto}
     .flex{display:flex;gap:14px;align-items:center;justify-content:space-between}
-    h1{margin:0;font-size:20px;letter-spacing:.3px}
-    nav a{margin-left:12px}
-    .btn{padding:12px 14px;border-radius:12px;border:1px solid #33407a;background:linear-gradient(180deg,#2741b3,#1f2d80);color:#fff;font-weight:600;cursor:pointer}
-    .btn.secondary{background:#0f1630;border-color:var(--edge);color:var(--text)}
-    .btn[disabled]{opacity:.6;cursor:not-allowed}
-    main{padding:22px 16px}
-    .grid2{display:grid;grid-template-columns:1.05fr .95fr;gap:18px}
-    .card{background:var(--card);border:1px solid var(--edge);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    h1{margin:0;font-size:22px;letter-spacing:.3px}
+    .tag{display:inline-block;margin-top:8px;padding:4px 10px;border:1px solid #263064;border-radius:999px;color:var(--muted);font-size:12px}
+    main{padding:26px 20px}
+    .hero{display:grid;grid-template-columns:1.1fr .9fr;gap:20px;margin-bottom:18px}
+    .hero-card{background:var(--card);border:1px solid var(--edge);border-radius:16px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .hero h2{margin:0 0 10px}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid #2a3567;color:var(--muted);font-size:12px}
     label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
-    input,select,textarea{width:100%;padding:12px;border-radius:12px;border:1px solid #27315f;background:#0e1530;color:var(--text);outline:none}
-    textarea{min-height:96px;resize:vertical}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-    /* ✅ Chips now have white text for contrast */
-    .chip{border:1px solid #2a3567;background:#0e1530;color:#fff;padding:6px 10px;border-radius:999px;font-size:12px;cursor:pointer}
-    .chip:hover{background:#15204a}
-    .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0 8px}
-    .kpi .v{font-size:22px;font-weight:800}
+    input,select,textarea{width:100%;padding:12px 12px;border-radius:12px;border:1px solid #27315f;background:#0e1530;color:var(--text);outline:none}
+    textarea{min-height:100px;resize:vertical}
+    button{padding:14px 16px;border-radius:12px;border:1px solid #33407a;background:linear-gradient(180deg,#2741b3,#1f2d80);color:white;font-weight:600;cursor:pointer}
+    button[disabled]{opacity:.6;cursor:not-allowed}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .chip{border:1px solid #2a3567;background:#0e1530;padding:6px 10px;border-radius:999px;font-size:12px;cursor:pointer;color:white}
+    .chip:hover{background:#1a2350}
+    .plan-select{margin-top:14px;display:flex;align-items:center;gap:10px}
+    .plan-select label{margin:0;font-size:13px;color:var(--muted)}
+    .plan-select select{padding:10px 12px;border-radius:10px;background:#0e1530;border:1px solid #2a3567;color:var(--text)}
+    .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+    .kpi .v{font-size:22px;font-weight:700}
     .kpi .u{font-size:12px;color:var(--muted)}
+    .drivers li{margin:6px 0}
     .good{color:var(--good)} .bad{color:var(--bad)} .warn{color:var(--warn)}
-    .muted{color:var(--muted)}
-    .tiny{font-size:12px}
-    .inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .right{display:flex;gap:8px;align-items:center}
-    .pill{display:inline-flex;gap:6px;align-items:center;border:1px solid #2a3567;color:var(--muted);border-radius:999px;padding:6px 10px;font-size:12px}
-    .usage{font-size:12px;color:var(--muted)}
-    .divider{height:1px;background:#223;opacity:.5;margin:12px 0}
-    .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-    .plan h4{margin:6px 0 6px}
-    .price{display:flex;gap:6px;align-items:flex-end}
-    .price .amt{font-size:26px;font-weight:800}
-    .save{font-size:11px;color:var(--good);border:1px solid rgba(53,199,89,.35);border-radius:999px;padding:2px 8px;margin-left:6px}
-    #moreDetails{white-space:pre-wrap}
-    @media (max-width:980px){.grid2{grid-template-columns:1fr}.grid3{grid-template-columns:1fr}}
+    @media (max-width:980px){.hero{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
-<header>
-  <div class="wrap flex">
-    <div>
-      <h1>EcoForecast AI™</h1>
-      <div class="tiny muted">Turn events into city & business forecasts — in seconds</div>
+  <header>
+    <div class="wrap">
+      <div class="flex">
+        <div>
+          <h1>EcoForecast AI™</h1>
+          <div class="tag">Business • Pro • Enterprise</div>
+        </div>
+        <nav><a href="#forecast">Forecast</a>&nbsp;·&nbsp;<a href="#pricing">Plans</a></nav>
+      </div>
     </div>
-    <nav class="right">
-      <a href="#forecast">Forecast</a>
-      <a href="#pricing">Pricing</a>
-      <div class="inline">
-        <button id="accountBtn" class="btn secondary tiny">Sign in</button>
-      </div>
-    </nav>
-  </div>
-</header>
+  </header>
 
-<main class="wrap" id="forecast">
-  <section class="grid2">
-    <!-- Left: form -->
-    <section class="card">
-      <h2 style="margin:0 0 6px">Forecast an Impact</h2>
-      <div class="pill">Step 1 · Describe the event or paste a bill / EO summary</div>
+  <main class="wrap" id="forecast">
+    <section class="hero">
+      <section class="hero-card">
+        <h2>Forecast an Impact</h2>
+        <p class="pill">Step 1 · Describe the event or paste text</p>
 
-      <label for="event">Event / Policy</label>
-      <textarea id="event" placeholder="Example: 'U.S. imposes 10% tariff on aluminum; expected start in 60 days' OR paste a bill/EO text."></textarea>
+        <label for="event">Event / Policy</label>
+        <textarea id="event" placeholder="Example: 'U.S. imposes 10% tariff on aluminum; expected start in 60 days.'"></textarea>
 
-      <div class="chips" aria-label="Event presets">
-        <button class="chip" data-preset="war_escalation">War Escalation</button>
-        <button class="chip" data-preset="tariff_steel">10% Steel Tariff</button>
-        <button class="chip" data-preset="hurricane_landfall">Hurricane Landfall</button>
-        <button class="chip" data-preset="regime_change">Regime Change</button>
-        <button class="chip" data-preset="party_shift_us">US Party Shift</button>
-      </div>
-
-      <div class="row">
-        <div>
-          <label for="geo">City / Region</label>
-          <input id="geo" placeholder="e.g., Phoenix, AZ or Washington, DC" list="geo-suggest"/>
-          <datalist id="geo-suggest">
-            <option value="Phoenix, AZ"></option>
-            <option value="Washington, DC"></option>
-            <option value="New York, NY"></option>
-            <option value="Miami, FL"></option>
-            <option value="Houston, TX"></option>
-          </datalist>
+        <div class="chips">
+          <button class="chip" data-preset="war_escalation">War Escalation</button>
+          <button class="chip" data-preset="tariff_steel">10% Steel Tariff</button>
+          <button class="chip" data-preset="hurricane_landfall">Hurricane Landfall</button>
+          <button class="chip" data-preset="regime_change">Regime Change</button>
+          <button class="chip" data-preset="party_shift_us">Party Shift (US)</button>
         </div>
-        <div>
-          <label for="naics">Industry (NAICS or keyword)</label>
-          <input id="naics" placeholder="e.g., 7225 (Restaurants) or 'Homebuilding'" list="naics-suggest"/>
-          <datalist id="naics-suggest">
-            <option value="7225 — Restaurants"></option>
-            <option value="2361 — Residential Building Construction"></option>
-            <option value="3364 — Aerospace Product & Parts"></option>
-            <option value="3311 — Iron & Steel Mills"></option>
-            <option value="6211 — Offices of Physicians"></option>
-          </datalist>
-        </div>
-      </div>
 
-      <div class="row">
-        <div>
-          <label for="horizon">Horizon</label>
-          <select id="horizon">
-            <option value="short">0–3 months</option>
-            <option value="medium" selected>3–12 months</option>
-            <option value="long">12–24 months</option>
+        <div class="row">
+          <div>
+            <label for="geo">City / Region</label>
+            <input id="geo" placeholder="e.g., Phoenix, AZ" />
+          </div>
+          <div>
+            <label for="naics">Industry (NAICS or keyword)</label>
+            <input id="naics" placeholder="e.g., 3313 or ‘Aluminum’" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="horizon">Horizon</label>
+            <select id="horizon">
+              <option value="short">0–3 months</option>
+              <option value="medium" selected>3–12 months</option>
+              <option value="long">12–24 months</option>
+            </select>
+          </div>
+          <div>
+            <label for="scenario">Scenario</label>
+            <select id="scenario">
+              <option>Base</option>
+              <option>Best Case</option>
+              <option>Severe</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="factors">(Optional) Extra factors</label>
+        <input id="factors" placeholder="wars, weather alerts, policy changes…" />
+
+        <!-- 🔹 Plan Selector -->
+        <div class="plan-select">
+          <label for="plan">Plan:</label>
+          <select id="plan">
+            <option value="business">Business</option>
+            <option value="pro">Pro</option>
+            <option value="enterprise">Enterprise</option>
           </select>
         </div>
-        <div>
-          <label for="scenario">Scenario</label>
-          <select id="scenario">
-            <option>Base</option>
-            <option>Best Case</option>
-            <option>Severe</option>
-          </select>
+
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button id="run">Run Forecast</button>
+          <button id="reset" style="background:#0f1630;border:1px solid var(--edge);color:var(--text)">Reset</button>
+          <span id="status" style="color:var(--muted)"></span>
         </div>
-      </div>
+      </section>
 
-      <label for="factors">(Optional) Extra factors to include</label>
-      <input id="factors" placeholder="wars, stock volatility, weather alerts, regime changes, party control…"/>
-
-      <div class="inline" style="margin-top:12px">
-        <button id="run" class="btn">Run Forecast</button>
-        <button id="reset" class="btn secondary">Reset</button>
-        <span id="status" class="muted tiny"></span>
-      </div>
-      <div class="divider"></div>
-      <div class="usage" id="usageInfo">Usage: —</div>
+      <section class="hero-card">
+        <h2>Results</h2>
+        <div id="results" style="min-height:260px">
+          <p class="pill">Forecast output will appear here.</p>
+          <div class="kpi">
+            <div><div class="u">Demand</div><div id="kpiDemand" class="v">—</div></div>
+            <div><div class="u">Costs</div><div id="kpiCosts" class="v">—</div></div>
+            <div><div class="u">EBITDA Margin</div><div id="kpiMargin" class="v">—</div></div>
+          </div>
+          <h3 style="margin:14px 0 6px">Top Drivers</h3>
+          <ul id="drivers" class="drivers"></ul>
+          <p id="conf" class="u" style="margin-top:8px"></p>
+        </div>
+      </section>
     </section>
+  </main>
 
-    <!-- Right: results -->
-    <section class="card" aria-labelledby="results-title">
-      <h2 id="results-title" style="margin:0 0 6px">Results</h2>
-      <div class="kpi">
-        <div><div class="u">Demand</div><div id="kpiDemand" class="v">—</div></div>
-        <div><div class="u">Costs</div><div id="kpiCosts" class="v">—</div></div>
-        <div><div class="u">EBITDA Margin</div><div id="kpiMargin" class="v">—</div></div>
-      </div>
-
-      <div class="inline tiny"><label class="muted">Details:</label>
-        <label><input type="radio" name="detailMode" value="summary" checked> Summary</label>
-        <label><input type="radio" name="detailMode" value="full"> Full</label>
-      </div>
-
-      <h3 style="margin:10px 0 6px">Top Drivers</h3>
-      <ul id="drivers" style="margin:0 0 10px 16px"></ul>
-      <div id="moreDetails" class="muted tiny"></div>
-      <div id="conf" class="muted tiny" style="margin-top:8px"></div>
-      <div class="divider"></div>
-      <h3 style="margin:0 0 8px">Impact Visual</h3>
-      <canvas id="impactChart" width="600" height="160" style="width:100%;background:#0e1530;border:1px solid #27315f;border-radius:12px"></canvas>
-      <div class="inline" style="margin-top:10px">
-        <button id="csvBtn" class="btn secondary">Download CSV</button>
-        <button id="pdfBtn" class="btn secondary">Download PDF Brief</button>
-      </div>
-    </section>
-  </section>
-
-  <!-- Pricing -->
-  <section id="pricing" style="margin-top:26px">
-    <h2 style="margin:0 0 8px">Pricing & Onboarding</h2>
-    <div class="pill">Note: We’re in Demo · Business Insight is available now. Analyst Pro and Enterprise are coming soon.</div>
-    <div class="grid3" style="margin-top:12px">
-      <!-- Business Insight -->
-      <article class="card plan">
-        <span class="muted tiny">EcoForecast AI™</span>
-        <h4>Business Insight</h4>
-        <div class="price"><span class="amt">$197/mo</span><span class="muted tiny">USD</span></div>
-        <div class="muted tiny">Setup: Optional $250 (waived on annual)</div>
-        <ul class="tiny" style="margin:8px 0 10px 18px">
-          <li>10 forecasts/month</li><li>Drivers & confidence</li><li>Downloadable briefs</li>
-        </ul>
-        <div class="inline">
-          <!-- ✅ Changed from “Join Waitlist” to “Start Now” -->
-          <a class="btn" href="#forecast" aria-label="Start now">Start Now</a>
-          <a class="btn secondary" href="mailto:info@nofabusinessconsulting.com?subject=EcoForecast%20AI%20Demo">Book a Demo</a>
-        </div>
-      </article>
-
-      <!-- Analyst Pro -->
-      <article class="card plan">
-        <span class="muted tiny">EcoForecast AI™</span>
-        <h4>Analyst Pro</h4>
-        <div class="price"><span class="amt">$697/mo</span><span class="muted tiny">USD</span></div>
-        <div class="muted tiny">Setup: $1,000 (local datasets + calibration)</div>
-        <ul class="tiny" style="margin:8px 0 10px 18px">
-          <li>Unlimited forecasts</li><li>Scenario Studio (best/base/severe)</li><li>Alerts</li>
-        </ul>
-        <div class="inline">
-          <a class="btn" href="mailto:waitlist_ai@nofabusinessconsulting.com?subject=EcoForecast%20AI%20Waitlist&body=Interested%20plan%3A%20Analyst%20Pro%0A">Join Waitlist</a>
-          <a class="btn secondary" href="mailto:info@nofabusinessconsulting.com?subject=EcoForecast%20AI%20Pro%20Inquiry">Contact Sales</a>
-        </div>
-      </article>
-
-      <!-- Enterprise -->
-      <article class="card plan">
-        <span class="muted tiny">EcoForecast AI™</span>
-        <h4>Enterprise / Investor</h4>
-        <div class="price"><span class="amt">$5,000+/mo</span><span class="muted tiny">USD</span></div>
-        <div class="muted tiny">Setup: $10,000 (scope-dependent)</div>
-        <ul class="tiny" style="margin:8px 0 10px 18px">
-          <li>Custom model tuning</li><li>API & BI integrations</li><li>Backtesting & validation</li>
-        </ul>
-        <div class="inline">
-          <!-- ✅ Primary is now Contact Sales; waitlist as secondary -->
-          <a class="btn" href="mailto:info@nofabusinessconsulting.com?subject=EcoForecast%20AI%20Enterprise%20Inquiry">Contact Sales</a>
-          <a class="btn secondary" href="mailto:waitlist_ai@nofabusinessconsulting.com?subject=EcoForecast%20AI%20Waitlist&body=Interested%20plan%3A%20Enterprise%0A">Join Waitlist</a>
-        </div>
-      </article>
-    </div>
-  </section>
-
-  <footer class="wrap muted tiny" style="padding:26px 0">
-    © EcoForecast AI™ • Part of the GovFlow AI™ family • For demo use only — not investment advice.
+  <footer class="wrap" style="padding:28px 20px;color:var(--muted);font-size:13px">
+    © EcoForecast AI™ • All rights reserved • <em>Part of the GovFlow AI™ family</em>
   </footer>
-</main>
 
-<!-- Firebase (compat v8-style for simplicity) -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-
-<script>
-  // Firebase config
-  const firebaseConfig = {
-    apiKey: "AIzaSyBBfrQcMn5Hmt2H5EbMh06LHmbCvtUZrU8",
-    authDomain: "eco-forecast-ai.firebaseapp.com",
-    projectId: "eco-forecast-ai",
-    storageBucket: "eco-forecast-ai.firebasestorage.app",
-    messagingSenderId: "133605292809",
-    appId: "1:133605292809:web:681c3eb8beb4d2a506b1d8",
-    measurementId: "G-XR5KV7MY16"
-  };
-  firebase.initializeApp(firebaseConfig);
-
-  // Helpers
-  const $ = (id) => document.getElementById(id);
-  const statusEl = $('status');
-  const usageEl = $('usageInfo');
-
-  const presetsMap = {
-    war_escalation:"A regional conflict escalates with partial blockade of a key shipping lane; insurance premia rise; export controls expand.",
-    tariff_steel:"U.S. imposes a 10% tariff on steel imports effective in 60 days; exemptions uncertain; domestic mills signal capacity strain.",
-    hurricane_landfall:"Category-4 hurricane landfall near major Gulf port; refinery throughput reduced; logistics reroutes extend lead times by 2-4 weeks.",
-    regime_change:"Sudden regime change triggers capital controls and export permit reviews; FX volatility spikes; counterparties reassess risk.",
-    party_shift_us:"One party gains unified control of White House and Congress; agenda prioritizes tax, energy, and labor policy changes within 12 months."
-  };
-  document.querySelectorAll('.chip').forEach(btn=>{
-    btn.addEventListener('click',()=>{$('event').value = presetsMap[btn.dataset.preset] || ''});
-  });
-
-  const naicsMap = [
-    {k:['restaurant','food service','dining'],v:'7225 — Restaurants'},
-    {k:['homebuilding','residential build','construction'],v:'2361 — Residential Building Construction'},
-    {k:['steel','metal','mill'],v:'3311 — Iron & Steel Mills'},
-    {k:['physician','clinic','doctor'],v:'6211 — Offices of Physicians'},
-    {k:['aerospace','aircraft'],v:'3364 — Aerospace Product & Parts'}
-  ];
-  $('naics').addEventListener('input',(e)=>{
-    const t=e.target.value.toLowerCase(); if(/^\d{4}/.test(t)) return;
-    const hit=naicsMap.find(x=>x.k.some(w=>t.includes(w))); if(hit) e.target.value=hit.v;
-  });
-
-  // Auth
-  let currentUser = null;
-  function setAccountUI(user){
-    const btn = $('accountBtn');
-    if(user){
-      btn.textContent = user.email || 'Account';
-      btn.onclick = ()=>{ if(confirm(`Signed in as ${user.email}\n\nOK = Sign out`)) firebase.auth().signOut(); };
-    } else {
-      btn.textContent = 'Sign in';
-      btn.onclick = showSignInMenu;
-    }
-  }
-  function showSignInMenu(){
-    const pick = prompt('Sign in:\n1 = Google\n2 = Email/Password\n(press Cancel to close)');
-    if(pick === '1') signInWithGoogle();
-    else if(pick === '2') signInWithEmailPrompt();
-  }
-  firebase.auth().onAuthStateChanged(async (user)=>{
-    currentUser = user || null;
-    setAccountUI(currentUser);
-    await refreshUsage();
-  });
-  firebase.auth().getRedirectResult().catch(err=>{
-    console.error('[auth] redirect error:',err);
-    alert('Sign-in redirect error: '+(err.message||err.code));
-  });
-  async function signInWithGoogle(){
-    const provider = new firebase.auth.GoogleAuthProvider();
-    try{ await firebase.auth().signInWithRedirect(provider); }
-    catch(err){ console.error('[auth] Google sign-in failed:',err); alert('Google sign-in failed: '+(err.message||err.code)); }
-  }
-  async function signInWithEmailPrompt(){
-    try{
-      const email=prompt('Email:'); if(!email) return;
-      const pass=prompt('Create or enter your password (min 6 chars):'); if(!pass) return;
-      try{ await firebase.auth().createUserWithEmailAndPassword(email,pass); }
-      catch(e){ if(e.code==='auth/email-already-in-use'){ await firebase.auth().signInWithEmailAndPassword(email,pass); } else { throw e; } }
-    }catch(err){ console.error('[auth] Email sign-in failed:',err); alert('Email sign-in failed: '+(err.message||err.code)); }
-  }
-
-  // Usage API
-  async function getIdToken(){ if(!currentUser) return null; return await currentUser.getIdToken(); }
-  async function refreshUsage(){
-    try{
-      const token = await getIdToken();
-      if(!token){ usageEl.textContent = 'Usage: sign in to track across devices.'; return; }
-      const res = await fetch('/api/usage/get',{headers:{Authorization:'Bearer '+token}});
-      if(!res.ok) throw new Error('usage get failed');
-      const {count,cap} = await res.json();
-      usageEl.textContent = `Usage this month: ${count}/${cap} forecasts`;
-    }catch{ usageEl.textContent = 'Usage: (local) —'; }
-  }
-  async function bumpUsage(){
-    try{
-      const token = await getIdToken(); if(!token) return true;
-      const res = await fetch('/api/usage/incr',{method:'POST',headers:{Authorization:'Bearer '+token}});
-      if(res.status===402){ const j = await res.json(); alert(`Monthly forecast quota exceeded (${j.count}/${j.cap}).`); return false; }
-      if(!res.ok) throw new Error('usage incr failed');
-      await refreshUsage(); return true;
-    }catch{ return true; }
-  }
-
-  // Chart
-  const ctx = $('impactChart').getContext('2d');
-  function drawBar(x,w,y,h,color='#6ea8fe'){ ctx.fillStyle=color; ctx.fillRect(x,y,w,h); }
-  function clearChart(){ ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height); }
-
-  function fmtPct(x){ if(x===undefined||x===null||isNaN(x)) return '—'; const s=Number(x).toFixed(1); return (x>0?'+':'')+s+'%'; }
-
-  function renderForecast(data){
-    $('kpiDemand').textContent = fmtPct(data.demand_pct);
-    $('kpiCosts').textContent  = fmtPct(data.cost_pct);
-    $('kpiMargin').textContent = (data.margin_bps>0?'+':'') + (data.margin_bps||0) + ' bps';
-
-    const drivers = $('drivers'); drivers.innerHTML = '';
-    (data.drivers||[]).slice(0,8).forEach(d=>{
-      const li=document.createElement('li'); li.textContent=d.text;
-      if(d.tone==='good') li.className='good'; if(d.tone==='bad') li.className='bad'; if(d.tone==='warn') li.className='warn';
-      drivers.appendChild(li);
+  <script>
+    // 🔹 Restore plan from localStorage
+    const planSel = document.getElementById('plan');
+    const savedPlan = localStorage.getItem('plan');
+    if (savedPlan) planSel.value = savedPlan;
+    planSel.addEventListener('change', e=>{
+      localStorage.setItem('plan', e.target.value);
     });
 
-    const mode = document.querySelector('input[name="detailMode"]:checked')?.value || 'summary';
-    const blocks = data.detail_blocks||{};
-    const mk = (title, arr)=> (arr && arr.length) ? `\n\n${title}\n• ${arr.join('\n• ')}` : '';
-    const fullText =
-      (data.explanations_full || data.explanations_summary || '') +
-      mk('Assumptions', blocks.assumptions) +
-      mk('Risks', blocks.risks) +
-      mk('Local Signals', blocks.local_signals) +
-      mk('Time Path', blocks.time_path) +
-      mk('Suggested Actions', blocks.suggested_actions) +
-      (data.sources_note ? `\n\nSources: ${data.sources_note}` : '') +
-      (data.caveats ? `\n\nCaveats: ${data.caveats}` : '');
+    const $ = id => document.getElementById(id);
+    const runBtn = $('run'), statusEl = $('status');
 
-    $('moreDetails').textContent = mode==='full' ? fullText : (data.explanations_summary || '');
+    // Run Forecast handler
+    runBtn.addEventListener('click', async () => {
+      statusEl.textContent = 'Running forecast…';
+      runBtn.disabled = true;
 
-    $('conf').textContent = 'Confidence: ' + Math.round((data.confidence||0)*100) + '%';
+      const payload = {
+        event: $('event').value.trim(),
+        geo: $('geo').value.trim(),
+        naics: $('naics').value.trim(),
+        horizon: $('horizon').value,
+        scenario: $('scenario').value,
+        extra_factors: $('factors').value.trim(),
+        plan: planSel.value
+      };
 
-    clearChart();
-    const baseY = 120, barW = 70, gap = 30, x0 = 60, scale = 3;
-    const toH = v => Math.min(60, Math.abs(v)*scale);
-    const bars = [{v:data.demand_pct||0},{v:data.cost_pct||0},{v:(data.margin_bps||0)/100}];
-    bars.forEach((b,i)=>{ const h=toH(b.v), up=b.v>=0; const x=x0+i*(barW+gap), y= up? baseY-h : baseY; drawBar(x,barW,y,h, up?'#3ba76c':'#e25d5d'); });
-  }
+      try {
+        const res = await fetch('/api/forecast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('API error');
+        const data = await res.json();
 
-  async function runForecast(){
-    statusEl.textContent = 'Running forecast…'; $('run').disabled=true;
+        $('kpiDemand').textContent = fmtPct(data.demand_pct);
+        $('kpiCosts').textContent = fmtPct(data.cost_pct);
+        $('kpiMargin').textContent = (data.margin_bps>0?'+':'') + data.margin_bps + ' bps';
 
-    const naicsRaw = $('naics').value.trim();
-    const naics = naicsRaw.match(/^\d{4}/)?.[0] || naicsRaw;
+        const drivers = $('drivers');
+        drivers.innerHTML = '';
+        (data.drivers || []).slice(0,10).forEach(d=>{
+          const li=document.createElement('li');
+          li.textContent='• '+d.text;
+          li.className=d.tone;
+          drivers.appendChild(li);
+        });
+        $('conf').textContent='Confidence: '+Math.round((data.confidence||0)*100)+'%';
+        statusEl.textContent='Done.';
+      } catch(e){
+        statusEl.textContent='Error: '+(e.message||'forecast failed');
+      } finally { runBtn.disabled=false; }
+    });
 
-    const payload = {
-      event: $('event').value.trim(),
-      geo: $('geo').value.trim(),
-      naics,
-      horizon: $('horizon').value,
-      scenario: $('scenario').value,
-      extra_factors: $('factors').value.trim(),
-      detail: document.querySelector('input[name="detailMode"]:checked')?.value || 'summary'
-    };
-
-    try{
-      const res = await fetch('/api/forecast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      if(!res.ok) throw new Error('API error');
-      const data = await res.json();
-      renderForecast(data);
-      await bumpUsage();
-      statusEl.textContent = 'Done.';
-    }catch(e){
-      console.error(e); statusEl.textContent = 'Something went wrong. Try again.';
-    }finally{ $('run').disabled=false; }
-  }
-
-  $('run').addEventListener('click', runForecast);
-  $('reset').addEventListener('click',()=>{
-    ['event','geo','naics','factors'].forEach(id=>$(id).value='');
-    $('kpiDemand').textContent = $('kpiCosts').textContent = '—';
-    $('kpiMargin').textContent = '—';
-    $('drivers').innerHTML = '';
-    $('moreDetails').textContent = '';
-    $('conf').textContent = '';
-    clearChart();
-    statusEl.textContent='';
-    window.scrollTo({top:0,behavior:'smooth'});
-  });
-
-  // CSV / PDF
-  function makeCSVFromPage(){
-    const rows = [
-      ['Demand %','Costs %','EBITDA margin (bps)','Confidence'],
-      [ $('kpiDemand').textContent, $('kpiCosts').textContent, $('kpiMargin').textContent, $('conf').textContent ],
-      [],
-      ['Top Drivers'],
-      ...Array.from(document.querySelectorAll('#drivers li')).map(li=>[li.textContent]),
-      [],
-      ['Details'],
-      [ $('moreDetails').textContent ]
-    ];
-    return rows.map(r=>r.map(x=>`"${String(x??'').replace(/"/g,'""')}"`).join(',')).join('\n');
-  }
-  $('csvBtn').addEventListener('click',()=>{
-    const csv = makeCSVFromPage();
-    const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href=url; a.download='eco-forecast.csv'; a.click(); URL.revokeObjectURL(url);
-  });
-  $('pdfBtn').addEventListener('click',()=>{
-    const w = window.open('', '_blank');
-    w.document.write(`
-      <html><head><title>EcoForecast Brief</title>
-      <style>
-        body{font-family:Arial;padding:24px}
-        h1{margin:0 0 8px}
-        .muted{color:#555}
-        ul{margin:8px 0 0 18px}
-        pre{white-space:pre-wrap}
-      </style>
-      </head><body>
-      <h1>EcoForecast AI™ — Brief</h1>
-      <div class="muted">${new Date().toLocaleString()}</div>
-      <h3>KPIs</h3>
-      <div>Demand: ${$('kpiDemand').textContent}</div>
-      <div>Costs: ${$('kpiCosts').textContent}</div>
-      <div>EBITDA Margin: ${$('kpiMargin').textContent}</div>
-      <div>${$('conf').textContent}</div>
-      <h3>Top Drivers</h3>
-      <ul>${Array.from(document.querySelectorAll('#drivers li')).map(li=>`<li>${li.textContent}</li>`).join('')}</ul>
-      <h3>Details</h3>
-      <pre>${$('moreDetails').textContent}</pre>
-      </body></html>
-    `);
-    w.document.close(); w.focus(); w.print();
-  });
-</script>
+    function fmtPct(x){
+      if(isNaN(x))return'—';
+      const sign=x>0?'+':'';
+      return sign+Number(x).toFixed(1)+'%';
+    }
+  </script>
 </body>
 </html>
