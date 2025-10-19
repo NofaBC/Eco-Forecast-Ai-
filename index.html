@@ -1,329 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EcoForecast AI™ — Event-to-Economy Forecaster</title>
-  <meta name="description" content="Forecast the local economic impact of wars, market shocks, weather, regime changes, and new policies on cities and businesses." />
-  <style>
-    :root{--bg:#0b1020;--card:#121a35;--edge:#1c254b;--text:#e8ecff;--muted:#aab3d9;--accent:#6ea8fe;--good:#35c759;--bad:#ff453a;--warn:#ffd60a}
-    *{box-sizing:border-box}
-    body{margin:0;font-family:Inter,system-ui,Segoe UI,Arial;background:linear-gradient(180deg,#0b1020,#0a0f1c);color:var(--text)}
-    a{color:var(--accent)}
-    header{padding:18px 20px;border-bottom:1px solid var(--edge);background:rgba(10,15,28,.65);backdrop-filter:saturate(1.2) blur(8px);position:sticky;top:0;z-index:20}
-    .wrap{max-width:1080px;margin:0 auto}
-    .flex{display:flex;gap:14px;align-items:center;justify-content:space-between}
-    h1{margin:0;font-size:20px;letter-spacing:.3px}
-    .tag{display:inline-block;margin-top:6px;padding:3px 9px;border:1px solid #263064;border-radius:999px;color:var(--muted);font-size:12px}
-    main{padding:22px 20px}
-
-    .hero{display:grid;grid-template-columns:1.1fr .9fr;gap:20px;margin-bottom:18px}
-    .hero-card{background:var(--card);border:1px solid var(--edge);border-radius:16px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-    .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid #2a3567;color:var(--muted);font-size:12px}
-
-    label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
-    input,select,textarea{width:100%;padding:12px;border-radius:12px;border:1px solid #27315f;background:#0e1530;color:var(--text);outline:none}
-    textarea{min-height:100px;resize:vertical}
-
-    button{padding:12px 14px;border-radius:12px;border:1px solid #33407a;background:linear-gradient(180deg,#2741b3,#1f2d80);color:#fff;font-weight:600;cursor:pointer}
-    button[disabled]{opacity:.6;cursor:not-allowed}
-    .link-btn{background:#0f1630;border:1px solid var(--edge);color:#fff}
-
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-    .chip{border:1px solid #2a3567;background:#0e1530;padding:6px 10px;border-radius:999px;font-size:12px;cursor:pointer;color:#fff}
-    .chip:hover{background:#18234b}
-
-    .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
-    .kpi .v{font-size:22px;font-weight:700}
-    .kpi .u{font-size:12px;color:var(--muted)}
-    .drivers li{margin:6px 0}
-    .good{color:var(--good)} .bad{color:var(--bad)} .warn{color:var(--warn)}
-
-    .auth{display:flex;gap:10px;align-items:center}
-    .user-pill{padding:6px 10px;border:1px solid var(--edge);border-radius:999px;font-size:12px;color:var(--muted)}
-    .menu{position:relative}
-    .menu-panel{position:absolute;right:0;top:40px;background:#0e1530;border:1px solid var(--edge);border-radius:12px;min-width:220px;padding:10px;display:none}
-    .menu.open .menu-panel{display:block}
-
-    .plan-select{display:flex;align-items:center;gap:10px;margin-top:12px}
-
-    /* Plans section */
-    .plans-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:12px}
-    .plan-card{background:var(--card);border:1px solid var(--edge);border-radius:16px;padding:16px}
-    .plan-card h3{margin:0 0 6px}
-    .plan-card ul{margin:10px 0 0 18px}
-    @media (max-width:980px){.hero{grid-template-columns:1fr}.plans-grid{grid-template-columns:1fr}}
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EcoForecast AI™ – Economic Impact Intelligence</title>
+  <link rel="icon" href="/favicon.ico" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
-<body>
-  <header>
-    <div class="wrap">
-      <div class="flex">
-        <div>
-          <h1>EcoForecast AI™</h1>
-          <div class="tag">Business • Pro • Enterprise</div>
-        </div>
-        <nav class="auth">
-          <a href="#forecast">Forecast</a>
-          <span style="opacity:.5">·</span>
-          <a href="#plans">Plans</a>
-          <span style="opacity:.5">·</span>
-          <!-- Auth dropdown -->
-          <div class="menu" id="authMenu">
-            <button id="authButton" class="link-btn">Sign in</button>
-            <div class="menu-panel" id="authPanel" aria-label="auth options">
-              <button id="btnGoogle" style="width:100%;margin-bottom:8px">Sign in with Google</button>
-              <button id="btnEmail"  style="width:100%;margin-bottom:8px">Sign in with Email</button>
-              <button id="btnSignOut" class="link-btn" style="width:100%">Sign out</button>
-            </div>
-          </div>
-          <span id="whoami" class="user-pill" style="display:none"></span>
-        </nav>
-      </div>
-    </div>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col items-center">
+  <header class="py-6 text-center">
+    <h1 class="text-3xl font-bold text-indigo-400">EcoForecast AI™</h1>
+    <p class="text-slate-400">Transform global events into business intelligence.</p>
   </header>
 
-  <main class="wrap" id="forecast">
-    <section class="hero">
-      <section class="hero-card">
-        <h2>Forecast an Impact</h2>
-        <p class="pill">Step 1 · Describe the event or paste text</p>
-
-        <label for="event">Event / Policy</label>
-        <textarea id="event" placeholder="Example: 'U.S. imposes 10% tariff on aluminum; expected start in 60 days.'"></textarea>
-
-        <div class="chips">
-          <button class="chip" data-preset="war_escalation">War Escalation</button>
-          <button class="chip" data-preset="tariff_steel">10% Steel Tariff</button>
-          <button class="chip" data-preset="hurricane_landfall">Hurricane Landfall</button>
-          <button class="chip" data-preset="regime_change">Regime Change</button>
-          <button class="chip" data-preset="party_shift_us">Party Shift (US)</button>
-        </div>
-
-        <div class="row">
-          <div>
-            <label for="geo">City / Region</label>
-            <input id="geo" placeholder="e.g., Phoenix, AZ" />
-          </div>
-          <div>
-            <label for="naics">Industry (NAICS or keyword)</label>
-            <input id="naics" placeholder="e.g., 3313 or ‘Aluminum’" />
-          </div>
-        </div>
-
-        <div class="row">
-          <div>
-            <label for="horizon">Horizon</label>
-            <select id="horizon">
-              <option value="short">0–3 months</option>
-              <option value="medium" selected>3–12 months</option>
-              <option value="long">12–24 months</option>
-            </select>
-          </div>
-          <div>
-            <label for="scenario">Scenario</label>
-            <select id="scenario">
-              <option>Base</option>
-              <option>Best Case</option>
-              <option>Severe</option>
-            </select>
-          </div>
-        </div>
-
-        <label for="factors">(Optional) Extra factors</label>
-        <input id="factors" placeholder="wars, weather alerts, policy changes…" />
-
-        <!-- Plan selector -->
-        <div class="plan-select">
-          <label for="plan">Plan:</label>
-          <select id="plan">
+  <main class="w-full max-w-5xl bg-slate-900 p-6 rounded-2xl shadow-lg">
+    <div class="grid md:grid-cols-2 gap-6">
+      <section>
+        <h2 class="text-xl font-semibold mb-3">Forecast an Impact</h2>
+        <form id="forecastForm" class="space-y-2">
+          <input id="event" class="w-full p-2 rounded bg-slate-800 border border-slate-700" placeholder="Describe event or policy..." />
+          <input id="geo" class="w-full p-2 rounded bg-slate-800 border border-slate-700" placeholder="City / Region" />
+          <input id="naics" class="w-full p-2 rounded bg-slate-800 border border-slate-700" placeholder="Industry / NAICS code" />
+          <select id="plan" class="w-full p-2 rounded bg-slate-800 border border-slate-700">
             <option value="business">Business</option>
             <option value="pro">Pro</option>
             <option value="enterprise">Enterprise</option>
           </select>
-        </div>
-
-        <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <button id="run">Run Forecast</button>
-          <button id="reset" class="link-btn">Reset</button>
-          <span id="status" style="color:var(--muted)"></span>
-        </div>
+          <button type="submit" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded mt-2">Run Forecast</button>
+        </form>
       </section>
 
-      <section class="hero-card">
-        <h2>Results</h2>
-        <div id="results" style="min-height:260px">
-          <p class="pill">Forecast output will appear here.</p>
-          <div class="kpi">
-            <div><div class="u">Demand</div><div id="kpiDemand" class="v">—</div></div>
-            <div><div class="u">Costs</div><div id="kpiCosts" class="v">—</div></div>
-            <div><div class="u">EBITDA Margin</div><div id="kpiMargin" class="v">—</div></div>
-          </div>
-          <h3 style="margin:14px 0 6px">Top Drivers</h3>
-          <ul id="drivers" class="drivers"></ul>
-          <p id="conf" class="u" style="margin-top:8px"></p>
+      <section id="results" class="p-4 bg-slate-800 rounded-xl">
+        <h2 class="text-lg font-semibold mb-2">Economic Impact Assessment</h2>
+        <div id="output" class="text-slate-300">
+          <p class="text-slate-400 text-sm">Run a forecast to view results.</p>
         </div>
+        <button id="downloadReport" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded mt-4 hidden">
+          📄 Download PDF
+        </button>
       </section>
-    </section>
-
-    <!-- Plans section (for #plans link) -->
-    <section id="plans" class="hero-card" style="margin-top:20px">
-      <h2>Plans</h2>
-      <p class="pill">Choose what fits your workflow</p>
-
-      <div class="plans-grid">
-        <article class="plan-card">
-          <h3>Business</h3>
-          <p class="u">Best for SMBs and local operators.</p>
-          <ul>
-            <li>10 forecasts / month</li>
-            <li>Summary KPIs + Top Drivers</li>
-            <li>Email / Google sign-in</li>
-          </ul>
-          <button class="link-btn" onclick="setPlan('business')">Use Business Plan</button>
-        </article>
-
-        <article class="plan-card">
-          <h3>Pro</h3>
-          <p class="u">Analyst-grade insights and scenarios.</p>
-          <ul>
-            <li>Extended drivers & assumptions</li>
-            <li>Best / Base / Severe scenarios</li>
-            <li>Local signals & risks sections</li>
-          </ul>
-          <button class="link-btn" onclick="setPlan('pro')">Use Pro Plan</button>
-        </article>
-
-        <article class="plan-card">
-          <h3>Enterprise</h3>
-          <p class="u">Custom models & integrations.</p>
-          <ul>
-            <li>Full narrative + PDF brief</li>
-            <li>API / BI pipeline options</li>
-            <li>Priority support</li>
-          </ul>
-          <button class="link-btn" onclick="setPlan('enterprise')">Use Enterprise Plan</button>
-        </article>
-      </div>
-    </section>
+    </div>
   </main>
 
-  <footer class="wrap" style="padding:28px 20px;color:var(--muted);font-size:13px">
-    © EcoForecast AI™ • All rights reserved • <em>Part of the GovFlow AI™ family</em>
+  <footer class="text-slate-500 text-sm py-6">
+    © 2025 EcoForecast AI™ – Part of the GovFlow AI™ Family.
   </footer>
 
-  <!-- Firebase (modular SDK via CDN) -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-    import {
-      getAuth, onAuthStateChanged, signOut,
-      GoogleAuthProvider, signInWithPopup,
-      signInWithEmailAndPassword, createUserWithEmailAndPassword
-    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+  <script>
+  const form = document.getElementById("forecastForm");
+  const output = document.getElementById("output");
+  const downloadBtn = document.getElementById("downloadReport");
 
-    // 🔐 Firebase web config (public client config)
-    const firebaseConfig = {
-      apiKey: "AIzaSyBBfrQcMn5Hmt2H5EbMh06LHmbCvtUZrU8",
-      authDomain: "eco-forecast-ai.firebaseapp.com",
-      projectId: "eco-forecast-ai",
-      storageBucket: "eco-forecast-ai.firebasestorage.app",
-      messagingSenderId: "133605292809",
-      appId: "1:133605292809:web:681c3eb8beb4d2a506b1d8",
-      measurementId: "G-XR5KV7MY16"
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    output.innerHTML = "<p class='text-yellow-400'>Generating forecast...</p>";
+    const event = document.getElementById("event").value;
+    const geo = document.getElementById("geo").value;
+    const naics = document.getElementById("naics").value;
+    const plan = document.getElementById("plan").value;
+
+    const res = await fetch("/api/forecast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event, geo, naics, plan, scenario: "Base" })
+    });
+    const data = await res.json();
+
+    output.innerHTML = `
+      <p><b>Demand:</b> ${data.demand_pct ?? 0}%</p>
+      <p><b>Costs:</b> ${data.cost_pct ?? 0}%</p>
+      <p><b>EBITDA Margin:</b> ${data.margin_bps ?? 0} bps</p>
+      <hr class="my-3 border-slate-600" />
+      <h3 class="text-xl font-semibold text-indigo-400">Summary</h3>
+      <p class="mt-2">${data.narrative?.summary || "No summary available."}</p>
+      <h3 class="text-xl font-semibold text-indigo-400 mt-4">Full Analysis</h3>
+      <p class="whitespace-pre-line mt-2">${data.narrative?.full || "No details available."}</p>
+    `;
+
+    downloadBtn.classList.remove("hidden");
+  });
+
+  downloadBtn.addEventListener("click", () => {
+    const reportElement = document.querySelector("#results");
+    const opt = {
+      margin: 0.5,
+      filename: `EcoForecast_Report_${new Date().toISOString().split('T')[0]}.pdf`,
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
     };
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-
-    // ===== Header auth menu =====
-    const authMenu = document.getElementById('authMenu');
-    const authButton = document.getElementById('authButton');
-    const whoami = document.getElementById('whoami');
-
-    authButton.addEventListener('click', ()=> authMenu.classList.toggle('open'));
-    document.addEventListener('click', e=>{ if(!authMenu.contains(e.target)) authMenu.classList.remove('open') });
-
-    document.getElementById('btnGoogle').addEventListener('click', async ()=>{
-      try { await signInWithPopup(auth, new GoogleAuthProvider()); }
-      catch(e){ alert('Google sign-in failed: '+e.message); }
-      authMenu.classList.remove('open');
-    });
-
-    document.getElementById('btnEmail').addEventListener('click', async ()=>{
-      const email = prompt('Email:'); const pass = prompt('Password (min 6):');
-      if(!email || !pass) return;
-      try{ await signInWithEmailAndPassword(auth, email, pass); }
-      catch{ await createUserWithEmailAndPassword(auth, email, pass); }
-      authMenu.classList.remove('open');
-    });
-
-    document.getElementById('btnSignOut').addEventListener('click', async ()=>{
-      await signOut(auth); authMenu.classList.remove('open');
-    });
-
-    onAuthStateChanged(auth, (user)=>{
-      if(user){ authButton.textContent='Account'; whoami.style.display='inline-block'; whoami.textContent=user.email||'Signed in'; }
-      else { authButton.textContent='Sign in'; whoami.style.display='none'; whoami.textContent=''; }
-    });
-
-    // ===== App logic (plan + forecast) =====
-    const $ = id => document.getElementById(id);
-
-    // Presets
-    const presetsMap = {
-      war_escalation:"A regional conflict escalates with partial blockade of a key shipping lane; insurance premia rise; export controls expand.",
-      tariff_steel:"U.S. imposes a 10% tariff on steel imports effective in 60 days; exemptions uncertain; domestic mills signal capacity strain.",
-      hurricane_landfall:"Category-4 hurricane landfall near major Gulf port; refinery throughput reduced; logistics reroutes extend lead times by 2-4 weeks.",
-      regime_change:"Sudden regime change triggers capital controls and export permit reviews; FX volatility spikes; counterparties reassess risk.",
-      party_shift_us:"One party gains unified control of White House and Congress; agenda prioritizes tax, energy, and labor policy changes within 12 months."
-    };
-    document.querySelectorAll('.chip').forEach(btn=>{
-      btn.addEventListener('click',()=>{ const k=btn.getAttribute('data-preset'); $('event').value = presetsMap[k] || '' })
-    });
-
-    // Plan selector (dropdown + buttons in plans section)
-    const planSel = $('plan');
-    const savedPlan = localStorage.getItem('plan'); if(savedPlan) planSel.value=savedPlan;
-    planSel.addEventListener('change', e=>localStorage.setItem('plan', e.target.value));
-    window.setPlan = (p)=>{ planSel.value=p; localStorage.setItem('plan', p); window.scrollTo({top:0,behavior:'smooth'}); }
-
-    $('run').addEventListener('click', async ()=>{
-      $('status').textContent='Running forecast…'; $('run').disabled=true;
-      const payload = {
-        event:$('event').value.trim(),
-        geo:$('geo').value.trim(),
-        naics:$('naics').value.trim(),
-        horizon:$('horizon').value,
-        scenario:$('scenario').value,
-        extra_factors:$('factors').value.trim(),
-        plan: planSel.value
-      };
-      try{
-        const res = await fetch('/api/forecast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-        if(!res.ok) throw new Error('API error');
-        const data = await res.json();
-        renderForecast(data);
-        $('status').textContent='Done.';
-      }catch(e){ $('status').textContent='Error: '+(e.message||'failed'); }
-      finally{ $('run').disabled=false; }
-    });
-
-    $('reset').addEventListener('click', ()=>{
-      ['event','geo','naics','factors'].forEach(id=>$(id).value='');
-      ['kpiDemand','kpiCosts','kpiMargin','conf'].forEach(id=>$(id).textContent='—');
-      $('drivers').innerHTML=''; $('status').textContent='';
-      window.scrollTo({top:0,behavior:'smooth'});
-    });
-
-    function renderForecast(data){
-      $('kpiDemand').textContent = fmtPct(data.demand_pct);
-      $('kpiCosts').textContent  = fmtPct(data.cost_pct);
-      $('kpiMargin').textContent = (data.margin_bps>0?'+':'') + (data.margin_bps??0) + ' bps';
-      const drivers=$('drivers'); drivers.innerHTML='';
-      (data.drivers||[]).slice(0,20).forEach(d=>{ const li=document.createElement('li'); li.textContent='• '+d.text; li.className=d.tone; drivers.appendChild(li); });
-      $('conf').textContent='Confidence: '+Math.round((data.confidence||0)*100)+'%';
-    }
-    function fmtPct(x){ if(x===undefined||x===null||isNaN(x)) return '—'; const s=x>0?'+':''; return s+Number(x).toFixed(1)+'%'; }
+    html2pdf().set(opt).from(reportElement).save();
+  });
   </script>
 </body>
 </html>
