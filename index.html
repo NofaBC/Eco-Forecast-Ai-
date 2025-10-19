@@ -6,41 +6,33 @@
   <title>EcoForecast AI™ — Event-to-Economy Forecaster</title>
   <meta name="description" content="Forecast the local economic impact of wars, market shocks, weather, regime changes, and new policies on cities and businesses." />
   <style>
-    :root {
-      --bg:#0b1020; --card:#121a35; --edge:#1c254b;
-      --text:#e8ecff; --muted:#aab3d9; --accent:#6ea8fe;
-      --good:#35c759; --bad:#ff453a; --warn:#ffd60a;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:Inter,system-ui,Segoe UI,Arial;background:linear-gradient(180deg,#0b1020,#0a0f1c);color:var(--text)}
-    a{color:var(--accent)}
-    header{padding:28px 20px;border-bottom:1px solid var(--edge);background:rgba(10,15,28,.6);backdrop-filter:saturate(1.2) blur(8px);position:sticky;top:0;z-index:20}
-    .wrap{max-width:1080px;margin:0 auto}
-    .flex{display:flex;gap:14px;align-items:center;justify-content:space-between}
-    h1{margin:0;font-size:22px;letter-spacing:.3px}
-    .tag{display:inline-block;margin-top:8px;padding:4px 10px;border:1px solid #263064;border-radius:999px;color:var(--muted);font-size:12px}
-    main{padding:26px 20px}
+    :root{--bg:#0b1020;--card:#121a35;--edge:#1c254b;--text:#e8ecff;--muted:#aab3d9;--accent:#6ea8fe;--good:#35c759;--bad:#ff453a;--warn:#ffd60a}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Segoe UI,Arial;background:linear-gradient(180deg,#0b1020,#0a0f1c);color:var(--text)}
+    a{color:var(--accent)} header{padding:18px 20px;border-bottom:1px solid var(--edge);background:rgba(10,15,28,.65);backdrop-filter:saturate(1.2) blur(8px);position:sticky;top:0;z-index:20}
+    .wrap{max-width:1080px;margin:0 auto} .flex{display:flex;gap:14px;align-items:center;justify-content:space-between}
+    h1{margin:0;font-size:20px;letter-spacing:.3px} .tag{display:inline-block;margin-top:6px;padding:3px 9px;border:1px solid #263064;border-radius:999px;color:var(--muted);font-size:12px}
+    main{padding:22px 20px}
     .hero{display:grid;grid-template-columns:1.1fr .9fr;gap:20px;margin-bottom:18px}
     .hero-card{background:var(--card);border:1px solid var(--edge);border-radius:16px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-    .hero h2{margin:0 0 10px}
     .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid #2a3567;color:var(--muted);font-size:12px}
     label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
-    input,select,textarea{width:100%;padding:12px 12px;border-radius:12px;border:1px solid #27315f;background:#0e1530;color:var(--text);outline:none}
+    input,select,textarea{width:100%;padding:12px;border-radius:12px;border:1px solid #27315f;background:#0e1530;color:var(--text);outline:none}
     textarea{min-height:100px;resize:vertical}
-    button{padding:14px 16px;border-radius:12px;border:1px solid #33407a;background:linear-gradient(180deg,#2741b3,#1f2d80);color:white;font-weight:600;cursor:pointer}
+    button{padding:12px 14px;border-radius:12px;border:1px solid #33407a;background:linear-gradient(180deg,#2741b3,#1f2d80);color:#fff;font-weight:600;cursor:pointer}
     button[disabled]{opacity:.6;cursor:not-allowed}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-    .chip{border:1px solid #2a3567;background:#0e1530;padding:6px 10px;border-radius:999px;font-size:12px;cursor:pointer;color:white}
-    .chip:hover{background:#1a2350}
-    .plan-select{margin-top:14px;display:flex;align-items:center;gap:10px}
-    .plan-select label{margin:0;font-size:13px;color:var(--muted)}
-    .plan-select select{padding:10px 12px;border-radius:10px;background:#0e1530;border:1px solid #2a3567;color:var(--text)}
+    .chip{border:1px solid #2a3567;background:#0e1530;padding:6px 10px;border-radius:999px;font-size:12px;cursor:pointer;color:#fff}
+    .chip:hover{background:#18234b}
     .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
-    .kpi .v{font-size:22px;font-weight:700}
-    .kpi .u{font-size:12px;color:var(--muted)}
-    .drivers li{margin:6px 0}
-    .good{color:var(--good)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+    .kpi .v{font-size:22px;font-weight:700} .kpi .u{font-size:12px;color:var(--muted)}
+    .drivers li{margin:6px 0} .good{color:var(--good)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+    .auth{display:flex;gap:10px;align-items:center}
+    .user-pill{padding:6px 10px;border:1px solid var(--edge);border-radius:999px;font-size:12px;color:var(--muted)}
+    .menu{position:relative} .menu-panel{position:absolute;right:0;top:40px;background:#0e1530;border:1px solid var(--edge);border-radius:12px;min-width:200px;padding:10px;display:none}
+    .menu.open .menu-panel{display:block}
+    .link-btn{background:#0f1630;border:1px solid var(--edge);color:#fff}
+    .plan-select{display:flex;align-items:center;gap:10px;margin-top:12px}
     @media (max-width:980px){.hero{grid-template-columns:1fr}}
   </style>
 </head>
@@ -52,7 +44,22 @@
           <h1>EcoForecast AI™</h1>
           <div class="tag">Business • Pro • Enterprise</div>
         </div>
-        <nav><a href="#forecast">Forecast</a>&nbsp;·&nbsp;<a href="#pricing">Plans</a></nav>
+        <nav class="auth">
+          <a href="#forecast">Forecast</a>
+          <span style="opacity:.5">·</span>
+          <a href="#plans">Plans</a>
+          <span style="opacity:.5">·</span>
+          <!-- Auth menu -->
+          <div class="menu" id="authMenu">
+            <button id="authButton" class="link-btn">Sign in</button>
+            <div class="menu-panel" id="authPanel" aria-label="auth options">
+              <button id="btnGoogle" style="width:100%;margin-bottom:8px">Sign in with Google</button>
+              <button id="btnEmail"  style="width:100%;margin-bottom:8px">Sign in with Email</button>
+              <button id="btnSignOut" class="link-btn" style="width:100%">Sign out</button>
+            </div>
+          </div>
+          <span id="whoami" class="user-pill" style="display:none"></span>
+        </nav>
       </div>
     </div>
   </header>
@@ -107,7 +114,7 @@
         <label for="factors">(Optional) Extra factors</label>
         <input id="factors" placeholder="wars, weather alerts, policy changes…" />
 
-        <!-- 🔹 Plan Selector -->
+        <!-- Plan selector -->
         <div class="plan-select">
           <label for="plan">Plan:</label>
           <select id="plan">
@@ -119,7 +126,7 @@
 
         <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <button id="run">Run Forecast</button>
-          <button id="reset" style="background:#0f1630;border:1px solid var(--edge);color:var(--text)">Reset</button>
+          <button id="reset" class="link-btn">Reset</button>
           <span id="status" style="color:var(--muted)"></span>
         </div>
       </section>
@@ -145,22 +152,102 @@
     © EcoForecast AI™ • All rights reserved • <em>Part of the GovFlow AI™ family</em>
   </footer>
 
-  <script>
-    // 🔹 Restore plan from localStorage
-    const planSel = document.getElementById('plan');
-    const savedPlan = localStorage.getItem('plan');
-    if (savedPlan) planSel.value = savedPlan;
-    planSel.addEventListener('change', e=>{
-      localStorage.setItem('plan', e.target.value);
+  <!-- Firebase (modular SDK via CDN) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import {
+      getAuth, onAuthStateChanged, signOut,
+      GoogleAuthProvider, signInWithPopup,
+      signInWithEmailAndPassword, createUserWithEmailAndPassword
+    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+    // 🔐 Your Firebase web config (from Firebase console)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBBfrQcMn5Hmt2H5EbMh06LHmbCvtUZrU8",
+      authDomain: "eco-forecast-ai.firebaseapp.com",
+      projectId: "eco-forecast-ai",
+      storageBucket: "eco-forecast-ai.firebasestorage.app",
+      messagingSenderId: "133605292809",
+      appId: "1:133605292809:web:681c3eb8beb4d2a506b1d8",
+      measurementId: "G-XR5KV7MY16"
+    };
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // UI elements
+    const authMenu = document.getElementById('authMenu');
+    const authButton = document.getElementById('authButton');
+    const authPanel = document.getElementById('authPanel');
+    const whoami = document.getElementById('whoami');
+
+    // Toggle dropdown
+    authButton.addEventListener('click', ()=> authMenu.classList.toggle('open'));
+    document.addEventListener('click', (e)=>{
+      if(!authMenu.contains(e.target)) authMenu.classList.remove('open');
     });
 
-    const $ = id => document.getElementById(id);
-    const runBtn = $('run'), statusEl = $('status');
+    // Sign in handlers
+    document.getElementById('btnGoogle').addEventListener('click', async ()=>{
+      try {
+        await signInWithPopup(auth, new GoogleAuthProvider());
+        authMenu.classList.remove('open');
+      } catch (e) { alert('Google sign-in failed: ' + e.message); }
+    });
 
-    // Run Forecast handler
-    runBtn.addEventListener('click', async () => {
-      statusEl.textContent = 'Running forecast…';
-      runBtn.disabled = true;
+    document.getElementById('btnEmail').addEventListener('click', async ()=>{
+      const email = prompt('Email:');
+      const pass  = prompt('Password (min 6 chars):');
+      if(!email || !pass) return;
+      try {
+        // Try sign-in, fall back to create
+        await signInWithEmailAndPassword(auth, email, pass);
+      } catch {
+        await createUserWithEmailAndPassword(auth, email, pass);
+      }
+      authMenu.classList.remove('open');
+    });
+
+    document.getElementById('btnSignOut').addEventListener('click', async ()=>{
+      await signOut(auth);
+      authMenu.classList.remove('open');
+    });
+
+    // Reflect auth state in the header
+    onAuthStateChanged(auth, (user)=>{
+      if(user){
+        authButton.textContent = 'Account';
+        whoami.style.display = 'inline-block';
+        whoami.textContent = user.email || 'Signed in';
+      }else{
+        authButton.textContent = 'Sign in';
+        whoami.style.display = 'none';
+        whoami.textContent = '';
+      }
+    });
+
+    // ===== App logic (unchanged + plan support) =====
+    const $ = id => document.getElementById(id);
+    const planSel = $('plan');
+    const savedPlan = localStorage.getItem('plan'); if(savedPlan) planSel.value = savedPlan;
+    planSel.addEventListener('change', e=>localStorage.setItem('plan', e.target.value));
+
+    const presetsMap = {
+      war_escalation:"A regional conflict escalates with partial blockade of a key shipping lane; insurance premia rise; export controls expand.",
+      tariff_steel:"U.S. imposes a 10% tariff on steel imports effective in 60 days; exemptions uncertain; domestic mills signal capacity strain.",
+      hurricane_landfall:"Category-4 hurricane landfall near major Gulf port; refinery throughput reduced; logistics reroutes extend lead times by 2-4 weeks.",
+      regime_change:"Sudden regime change triggers capital controls and export permit reviews; FX volatility spikes; counterparties reassess risk.",
+      party_shift_us:"One party gains unified control of White House and Congress; agenda prioritizes tax, energy, and labor policy changes within 12 months."
+    };
+    document.querySelectorAll('.chip').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const key = btn.getAttribute('data-preset');
+        $('event').value = presetsMap[key] || '';
+      });
+    });
+
+    $('run').addEventListener('click', async ()=>{
+      $('status').textContent = 'Running forecast…';
+      $('run').disabled = true;
 
       const payload = {
         event: $('event').value.trim(),
@@ -172,39 +259,42 @@
         plan: planSel.value
       };
 
-      try {
+      try{
         const res = await fetch('/api/forecast', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
           body: JSON.stringify(payload)
         });
-        if (!res.ok) throw new Error('API error');
+        if(!res.ok) throw new Error('API error');
         const data = await res.json();
-
-        $('kpiDemand').textContent = fmtPct(data.demand_pct);
-        $('kpiCosts').textContent = fmtPct(data.cost_pct);
-        $('kpiMargin').textContent = (data.margin_bps>0?'+':'') + data.margin_bps + ' bps';
-
-        const drivers = $('drivers');
-        drivers.innerHTML = '';
-        (data.drivers || []).slice(0,10).forEach(d=>{
-          const li=document.createElement('li');
-          li.textContent='• '+d.text;
-          li.className=d.tone;
-          drivers.appendChild(li);
-        });
-        $('conf').textContent='Confidence: '+Math.round((data.confidence||0)*100)+'%';
-        statusEl.textContent='Done.';
-      } catch(e){
-        statusEl.textContent='Error: '+(e.message||'forecast failed');
-      } finally { runBtn.disabled=false; }
+        renderForecast(data);
+        $('status').textContent = 'Done.';
+      }catch(err){
+        $('status').textContent = 'Error: ' + (err.message||'failed');
+      }finally{
+        $('run').disabled = false;
+      }
     });
 
-    function fmtPct(x){
-      if(isNaN(x))return'—';
-      const sign=x>0?'+':'';
-      return sign+Number(x).toFixed(1)+'%';
+    $('reset').addEventListener('click', ()=>{
+      ['event','geo','naics','factors'].forEach(id=>$(id).value='');
+      ['kpiDemand','kpiCosts','kpiMargin','conf'].forEach(id=>$(id).textContent='—');
+      $('drivers').innerHTML='';
+      $('status').textContent='';
+      window.scrollTo({top:0,behavior:'smooth'});
+    });
+
+    function renderForecast(data){
+      $('kpiDemand').textContent = fmtPct(data.demand_pct);
+      $('kpiCosts').textContent  = fmtPct(data.cost_pct);
+      $('kpiMargin').textContent = (data.margin_bps>0?'+':'') + (data.margin_bps??0) + ' bps';
+      const drivers = $('drivers'); drivers.innerHTML='';
+      (data.drivers||[]).slice(0,20).forEach(d=>{
+        const li=document.createElement('li'); li.textContent='• '+d.text; li.className=d.tone; drivers.appendChild(li);
+      });
+      $('conf').textContent = 'Confidence: ' + Math.round((data.confidence||0)*100) + '%';
     }
+    function fmtPct(x){ if(x===undefined||x===null||isNaN(x)) return '—'; const s=x>0?'+':''; return s+Number(x).toFixed(1)+'%'; }
   </script>
 </body>
 </html>
