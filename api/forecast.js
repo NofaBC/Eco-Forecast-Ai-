@@ -1,30 +1,14 @@
-// api/forecast.js
-//
-// Deep-report forecaster with 2-stage generation and strict JSON.
-// Stage 1: numbers + outline; Stage 2: long-form narrative (word targets by plan).
-//
-// ENV (Vercel):
-//   OPENROUTER_API_KEY      = sk-or-... (required for live model)
-//   OPENROUTER_MODEL        = openai/gpt-4o  (recommended)
-//   REPORT_WORDS_BUSINESS   = 600   (optional override)
-//   REPORT_WORDS_PRO        = 1400  (optional override)
-//   REPORT_WORDS_ENTERPRISE = 2200  (optional override)
+// api/forecast.js  — EcoForecast AI™ v3.0
+// Author: NOFA Business Consulting | Farhad Nasserghodsi
+// Purpose: Deep reasoning economic forecasts with tiered narrative depth + PDF-ready summaries
 
-const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || "openai/gpt-4o";
+const MODEL = process.env.OPENROUTER_MODEL || "openai/gpt-4o";
+const API_KEY = process.env.OPENROUTER_API_KEY;
 
-const PLAN = {
-  business: {
-    words: Number(process.env.REPORT_WORDS_BUSINESS || 700),
-    maxTokens: 1600
-  },
-  pro: {
-    words: Number(process.env.REPORT_WORDS_PRO || 1600),
-    maxTokens: 3000
-  },
-  enterprise: {
-    words: Number(process.env.REPORT_WORDS_ENTERPRISE || 2300),
-    maxTokens: 4000
-  }
+const PLAN_DEPTH = {
+  business: { maxTokens: 1000, narrativeLength: 500 },
+  pro: { maxTokens: 2500, narrativeLength: 1500 },
+  enterprise: { maxTokens: 4000, narrativeLength: 2500 }
 };
 
 function horizonMonths(h) {
@@ -33,299 +17,112 @@ function horizonMonths(h) {
   return 12;
 }
 
-function mockRich(plan, geo, naics, horizon) {
-  const months = horizonMonths(horizon);
+function mockReport(plan, geo, naics) {
   return {
-    demand_pct: -2.1,
-    cost_pct: 1.3,
-    margin_bps: -140,
+    demand_pct: -3.2,
+    cost_pct: 2.1,
+    margin_bps: -180,
     drivers: [
-      { text: "Households defer discretionary purchases in the near term.", tone: "warn" },
-      { text: "Freight, insurance, and energy lift input costs.", tone: "bad" },
-      { text: "Operators defend margins via mix, staffing, and pricing.", tone: "good" }
+      { text: "Lower consumer confidence reduces discretionary spending.", tone: "warn" },
+      { text: "Energy costs and logistics disruptions raise input prices.", tone: "bad" },
+      { text: "Operational optimization and digital tools offset part of the loss.", tone: "good" }
     ],
-    confidence: 0.83,
+    confidence: 0.84,
     narrative: {
-      summary:
-        `Over the next ${months} months in ${geo}, NAICS ${naics} faces mild-to-moderate demand softness and modest cost pressure. Margin repair hinges on mix, schedule discipline, and input negotiations.`,
-      full:
-        `Assumptions: supply lanes remain open; no full port closures; fuel elevated but not spiking >15% MoM.\n\n` +
-        `Risks: conflict escalation extending lead times; higher insurance premia; confidence shock.\n\n` +
-        `Local signals to watch: foot-traffic vs. 2019 baseline, dining reservations/turn, card-spend mix Grocery vs. Dining.\n\n` +
-        `Time path: 0–3m softness; 4–9m stabilization; 10–12m gradual re-acceleration.\n\n` +
-        `Actions: pre-buy non-perishables; renegotiate fuel-surcharge clauses; menu engineering; day-part staffing; targeted local marketing; monitor WTI/Brent, port dwell times, CPI FAFH.`,
-      assumptions: [
-        "No complete shutdown of key logistics nodes",
-        "Energy prices elevated but do not spike >15% MoM",
-        "No restrictive local mandate on operating hours"
-      ],
-      risks: [
-        "Lead times extend to 4–6 weeks",
-        "Insurance and risk premia outpace budgets",
-        "Confidence shock reduces visit frequency"
-      ],
-      local_signals: [
-        "Foot traffic trend vs. 2019 (PlaceIQ/SafeGraph-style)",
-        "Reservations & table turn (OpenTable-like)",
-        "Card-spend mix: Grocery vs. Dining"
-      ],
-      time_path: [
-        "0–3m: demand dip; costs elevated; margin defense required",
-        "4–9m: demand stabilizes; selective easing on logistics",
-        "10–12m: gradual margin repair as inputs normalize"
-      ],
-      actions: [
-        "Hedge/forward-buy shelf-stable inputs",
-        "Menu engineering for higher contribution margin",
-        "Consolidate deliveries; renegotiate fuel surcharges"
-      ],
-      data_anchors: [
-        "WTI/Brent weekly, Baltic Dry Index",
-        "CPI (FAFH), PPI (food inputs & packaging)",
-        "Local payrolls, seated diners index, card-spend trends"
-      ]
-    },
-    meta: {
-      plan,
-      geo_canonical: geo,
-      naics_canonical: String(naics),
-      horizon_months: months,
-      source: "mock"
+      summary: `Short-term headwinds expected for ${naics} in ${geo}, as demand dips and costs rise modestly.`,
+      full: `Demand is expected to decline by roughly 3%, primarily due to weaker consumer sentiment and uncertainty around the event. Costs rise modestly from fuel and insurance volatility, trimming margins by approximately 180 basis points. Business recovery will depend on supply normalization and consumer rebound.`
     }
   };
 }
 
-async function callOpenRouter(payload) {
+function buildPrompt(event, geo, naics, scenario, horizon, extra, plan) {
+  const planSpec = PLAN_DEPTH[plan] || PLAN_DEPTH.business;
+  return `
+Generate a professional economic impact forecast for the following:
+
+Event: ${event}
+City/Region: ${geo}
+Industry (NAICS): ${naics}
+Scenario: ${scenario}
+Time Horizon: ${horizon}
+Extra Factors: ${extra || "none"}
+
+Instructions:
+- Write a professional 5–8 paragraph analysis (approx. ${planSpec.narrativeLength} words for ${plan} plan).
+- Include cause–effect reasoning, historical parallels, and business implications.
+- Address the following sections in order:
+  1. Executive Summary
+  2. Key Assumptions
+  3. Demand Outlook
+  4. Cost Pressures
+  5. Profit Margin Impacts
+  6. Risks & Opportunities
+  7. Strategic Recommendations
+- Write in the tone of a Goldman Sachs / McKinsey analyst brief.
+- End with 3 bullet takeaways.
+- Output valid JSON only in this format:
+{
+ "demand_pct": number,
+ "cost_pct": number,
+ "margin_bps": number,
+ "drivers": [{"text": string, "tone": "good"|"bad"|"warn"}],
+ "confidence": number,
+ "narrative": {"summary": string, "full": string}
+}
+Do NOT include code fences or markdown formatting.
+`;
+}
+
+async function callModel(prompt, plan) {
   const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      Authorization: `Bearer ${API_KEY}`,
       "Content-Type": "application/json",
       "HTTP-Referer": "https://eco-forecast-ai.vercel.app",
       "X-Title": "EcoForecast AI"
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify({
+      model: MODEL,
+      temperature: 0.25,
+      max_tokens: PLAN_DEPTH[plan].maxTokens,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: "You are EcoForecast AI, an economic intelligence system. Output valid JSON only." },
+        { role: "user", content: prompt }
+      ]
+    })
   });
-  return resp;
-}
-
-function buildStage1Prompt(context) {
-  // Numbers + outline only (concise)
-  return `
-Return ONLY a JSON object with this shape:
-
-{
-  "demand_pct": number,       // e.g., -3.2 (percent)
-  "cost_pct": number,         // e.g., 1.4  (percent)
-  "margin_bps": integer,      // e.g., -120 (basis points)
-  "drivers": [{"text": string, "tone": "good"|"bad"|"warn"}],
-  "confidence": number,       // 0..1
-  "outline": {
-    "assumptions": string[],
-    "risks": string[],
-    "local_signals": string[],
-    "time_path": string[],
-    "actions": string[],
-    "data_anchors": string[]
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data = await resp.json();
+  const content = data?.choices?.[0]?.message?.content?.trim() || "";
+  try {
+    return JSON.parse(content);
+  } catch (e) {
+    console.error("Bad JSON:", content.slice(0, 400));
+    throw new Error("Invalid JSON from model");
   }
-}
-
-No code fences. Valid JSON only.
-
-Context:
-${context}
-`.trim();
-}
-
-function buildStage2Prompt(context, outline, wordTarget) {
-  const safeOutline = JSON.stringify(outline ?? {}, null, 2);
-  return `
-Using the *outline* below, write a detailed, decision-grade forecast narrative.
-
-Requirements:
-- Target length: ~${wordTarget} words (do not go under ${Math.floor(wordTarget * 0.8)} words).
-- Executive summary first (1–3 paragraphs).
-- Then labeled sections: Assumptions, Risks, Local Signals, Time Path, Suggested Actions, Data Anchors.
-- Localize to the city/region and NAICS where relevant.
-- Keep numeric claims plausible; no sensationalism.
-- Do not produce markdown code fences.
-
-Return ONLY a JSON object:
-{
-  "narrative": {
-    "summary": string,
-    "full": string,
-    "assumptions": string[],
-    "risks": string[],
-    "local_signals": string[],
-    "time_path": string[],
-    "actions": string[],
-    "data_anchors": string[]
-  }
-}
-
-Context:
-${context}
-
-Outline:
-${safeOutline}
-`.trim();
 }
 
 export default async function handler(req, res) {
   try {
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method not allowed" });
-    }
+    if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-    const {
-      event,
-      geo,
-      naics,
-      horizon = "medium",
-      scenario = "Base",
-      plan = "business",
-      extra_factors = ""
-    } = req.body || {};
+    const { event, geo, naics, scenario, horizon, plan, extra_factors } = req.body || {};
+    if (!event || !geo || !naics) return res.status(400).json({ error: "Missing required fields" });
+    if (!API_KEY) return res.status(200).json(mockReport(plan, geo, naics));
 
-    if (!event || !geo || !naics) {
-      return res.status(400).json({ error: "Missing required fields: event, geo, naics" });
-    }
+    const prompt = buildPrompt(event, geo, naics, scenario, horizon, extra_factors, plan);
+    const result = await callModel(prompt, plan);
 
-    const months = horizonMonths(horizon);
-    const cfg = PLAN[plan] || PLAN.business;
-
-    const context =
-      `Event: ${event}\n` +
-      `Geo: ${geo}\n` +
-      `Industry/NAICS: ${naics}\n` +
-      `Horizon: ${horizon} (${months} months)\n` +
-      `Scenario: ${scenario}\n` +
-      `Extra factors: ${extra_factors || "none"}\n` +
-      `Audience: operator/executive; business decisions.\n` +
-      `Plan: ${plan} (long narrative expected).`;
-
-    const hasKey = !!process.env.OPENROUTER_API_KEY;
-    if (!hasKey) {
-      return res.status(200).json(mockRich(plan, geo, naics, horizon));
-    }
-
-    // ---------- Stage 1: numbers + outline ----------
-    let stage1Json;
-    {
-      const stage1 = buildStage1Prompt(context);
-      const r1 = await callOpenRouter({
-        model: DEFAULT_MODEL,
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-        max_tokens: Math.max(700, Math.floor(cfg.maxTokens * 0.35)),
-        messages: [
-          { role: "system", content: "You are EcoForecast AI. Output strictly valid JSON." },
-          { role: "user", content: stage1 }
-        ]
-      });
-
-      if (!r1.ok) {
-        const txt = await r1.text().catch(() => "");
-        console.error("Stage1 HTTP error:", r1.status, txt);
-        const fb = mockRich(plan, geo, naics, horizon);
-        fb.meta = { ...fb.meta, error: `openrouter_stage1_${r1.status}`, detail: txt.slice(0, 300) };
-        return res.status(200).json(fb);
-      }
-      const j1 = await r1.json().catch(() => null);
-      const raw1 = j1?.choices?.[0]?.message?.content?.trim() || "{}";
-      try { stage1Json = JSON.parse(raw1); } catch { stage1Json = null; }
-      if (!stage1Json) {
-        const fb = mockRich(plan, geo, naics, horizon);
-        fb.meta = { ...fb.meta, error: "stage1_bad_json", detail: raw1.slice(0, 300) };
-        return res.status(200).json(fb);
-      }
-    }
-
-    // ---------- Stage 2: long narrative ----------
-    const targetWords = cfg.words;
-    let stage2Json;
-    let attempt = 0;
-    while (attempt < 2) {
-      attempt += 1;
-      const stage2 = buildStage2Prompt(context, stage1Json.outline, targetWords);
-      const r2 = await callOpenRouter({
-        model: DEFAULT_MODEL,
-        temperature: 0.25,
-        response_format: { type: "json_object" },
-        max_tokens: cfg.maxTokens,
-        messages: [
-          { role: "system", content: "You are EcoForecast AI. Output strictly valid JSON." },
-          { role: "user", content: stage2 }
-        ]
-      });
-
-      if (!r2.ok) {
-        const txt = await r2.text().catch(() => "");
-        console.error("Stage2 HTTP error:", r2.status, txt);
-        break; // will fallback after loop
-      }
-
-      const j2 = await r2.json().catch(() => null);
-      const raw2 = j2?.choices?.[0]?.message?.content?.trim() || "{}";
-      try { stage2Json = JSON.parse(raw2); } catch { stage2Json = null; }
-
-      // If too short, retry once with a stronger nudge
-      const words = (stage2Json?.narrative?.full || "").split(/\s+/).filter(Boolean).length;
-      if (stage2Json && words >= Math.floor(targetWords * 0.8)) break;
-
-      // adjust target if needed and try again
-      if (attempt < 2) {
-        console.warn(`Stage2 too short (${words} < ${Math.floor(targetWords*0.8)}). Retrying…`);
-      }
-    }
-
-    // If stage 2 failed, fallback to mock narrative but keep stage1 numbers
-    if (!stage2Json) {
-      const fb = mockRich(plan, geo, naics, horizon);
-      // merge stage1 numbers
-      if (stage1Json) {
-        fb.demand_pct = Number(stage1Json.demand_pct ?? fb.demand_pct);
-        fb.cost_pct = Number(stage1Json.cost_pct ?? fb.cost_pct);
-        fb.margin_bps = Number(stage1Json.margin_bps ?? fb.margin_bps);
-        fb.drivers = Array.isArray(stage1Json.drivers) ? stage1Json.drivers : fb.drivers;
-        fb.confidence = Number(stage1Json.confidence ?? fb.confidence);
-      }
-      fb.meta = { ...fb.meta, error: "stage2_failed", source: "openrouter_fallback" };
-      return res.status(200).json(fb);
-    }
-
-    // Merge results
-    const out = {
-      demand_pct: Number(stage1Json.demand_pct),
-      cost_pct: Number(stage1Json.cost_pct),
-      margin_bps: Number(stage1Json.margin_bps),
-      drivers: Array.isArray(stage1Json.drivers) ? stage1Json.drivers : [],
-      confidence: Number(stage1Json.confidence),
-      narrative: {
-        summary: stage2Json.narrative?.summary || "",
-        full: stage2Json.narrative?.full || "",
-        assumptions: stage2Json.narrative?.assumptions || stage1Json.outline?.assumptions || [],
-        risks: stage2Json.narrative?.risks || stage1Json.outline?.risks || [],
-        local_signals: stage2Json.narrative?.local_signals || stage1Json.outline?.local_signals || [],
-        time_path: stage2Json.narrative?.time_path || stage1Json.outline?.time_path || [],
-        actions: stage2Json.narrative?.actions || stage1Json.outline?.actions || [],
-        data_anchors: stage2Json.narrative?.data_anchors || stage1Json.outline?.data_anchors || []
-      },
-      meta: {
-        plan,
-        geo_canonical: geo,
-        naics_canonical: String(naics),
-        horizon_months: months,
-        source: "openrouter_2stage"
-      }
-    };
-
-    return res.status(200).json(out);
+    return res.status(200).json({
+      ...result,
+      meta: { plan, model: MODEL, source: "EcoForecast-v3.0" }
+    });
   } catch (err) {
-    console.error("forecast fatal:", err);
-    const fb = mockRich("business", "Unknown", "0000", "medium");
-    fb.meta = { ...fb.meta, error: "handler_exception", detail: String(err).slice(0, 300) };
+    console.error("Forecast Error:", err);
+    const fb = mockReport("business", "Unknown", "0000");
+    fb.meta = { error: err.message, source: "fallback" };
     return res.status(200).json(fb);
   }
 }
