@@ -60,56 +60,62 @@
           <button class="chip" data-preset="party_shift_us">US Party Shift</button>
         </div>
 
-        <label class="text-sm text-slate-400">Event / Policy</label>
-        <textarea id="event" class="w-full mt-1 mb-3 p-3 rounded-xl bg-slate-800 border border-slate-700 min-h-[100px]" placeholder="Example: 'U.S. imposes 10% tariff on aluminum; expected start in 60 days'"></textarea>
-
-        <div class="grid grid-cols-2 gap-3">
+        <form id="forecastForm" class="space-y-3">
           <div>
-            <label class="text-sm text-slate-400">City / Region</label>
-            <input id="geo" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="e.g., Phoenix, AZ" />
+            <label class="text-sm text-slate-400">Event / Policy</label>
+            <textarea id="event" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700 min-h-[110px]" placeholder="Example: 'U.S. imposes 10% tariff on aluminum; expected start in 60 days'"></textarea>
           </div>
-          <div>
-            <label class="text-sm text-slate-400">Industry (NAICS or keyword)</label>
-            <input id="naics" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="e.g., 3313 or 'Aluminum'" />
-          </div>
-        </div>
 
-        <div class="grid grid-cols-2 gap-3 mt-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-sm text-slate-400">City / Region</label>
+              <input id="geo" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="e.g., Phoenix, AZ" />
+            </div>
+            <div>
+              <label class="text-sm text-slate-400">Industry (NAICS or keyword)</label>
+              <input id="naics" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="e.g., 3313 or 'Aluminum'" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-sm text-slate-400">Horizon</label>
+              <select id="horizon" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700">
+                <option value="short">0–3 months</option>
+                <option value="medium" selected>3–12 months</option>
+                <option value="long">12–24 months</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-sm text-slate-400">Scenario</label>
+              <select id="scenario" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700">
+                <option>Base</option>
+                <option>Best Case</option>
+                <option>Severe</option>
+              </select>
+            </div>
+          </div>
+
           <div>
-            <label class="text-sm text-slate-400">Horizon</label>
-            <select id="horizon" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700">
-              <option value="short">0–3 months</option>
-              <option value="medium" selected>3–12 months</option>
-              <option value="long">12–24 months</option>
+            <label class="text-sm text-slate-400">Extra factors (optional)</label>
+            <input id="factors" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="wars, weather alerts, regime changes, party control…" />
+          </div>
+
+          <div>
+            <label class="text-sm text-slate-400">Plan</label>
+            <select id="plan" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700">
+              <option value="business">Business</option>
+              <option value="pro">Pro</option>
+              <option value="enterprise">Enterprise</option>
             </select>
           </div>
-          <div>
-            <label class="text-sm text-slate-400">Scenario</label>
-            <select id="scenario" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700">
-              <option>Base</option>
-              <option>Best Case</option>
-              <option>Severe</option>
-            </select>
+
+          <div class="mt-1 flex flex-wrap items-center gap-3">
+            <button id="run" type="submit" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700">Run Forecast</button>
+            <button id="reset" type="button" class="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700">Reset</button>
+            <span id="status" class="text-sm text-slate-400"></span>
           </div>
-        </div>
-
-        <label class="text-sm text-slate-400 mt-3 block">Extra factors (optional)</label>
-        <input id="factors" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="wars, weather alerts, regime changes, party control…" />
-
-        <div class="mt-3">
-          <label class="text-sm text-slate-400">Plan</label>
-          <select id="plan" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700">
-            <option value="business">Business</option>
-            <option value="pro">Pro</option>
-            <option value="enterprise">Enterprise</option>
-          </select>
-        </div>
-
-        <div class="mt-4 flex flex-wrap items-center gap-3">
-          <button id="run" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700">Run Forecast</button>
-          <button id="reset" class="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700">Reset</button>
-          <span id="status" class="text-sm text-slate-400"></span>
-        </div>
+        </form>
       </section>
 
       <!-- Right: Results -->
@@ -200,10 +206,12 @@
     </div>
   </footer>
 
-  <!-- ====== App logic (FORECAST UI) — non-module, resilient ====== -->
+  <!-- ====== App logic (FORECAST UI) — resilient & verbose ====== -->
   <script>
-    // Safe helpers
+  document.addEventListener('DOMContentLoaded', () => {
+    // Helpers
     const $ = (id) => document.getElementById(id);
+    const statusEl = $('status');
 
     // Preset chips
     const presetsMap = {
@@ -250,44 +258,67 @@
       };
     }
 
-    $('run')?.addEventListener('click', async ()=>{
-      $('status').textContent = 'Running forecast…';
-      $('run').disabled = true;
-      const payload = {
-        event: $('event').value.trim(),
-        geo: $('geo').value.trim(),
-        naics: $('naics').value.trim(),
-        horizon: $('horizon').value,
-        scenario: $('scenario').value,
-        extra_factors: $('factors').value.trim(),
-        plan: planSel.value
-      };
+    async function runForecast(){
       try{
+        statusEl.textContent = 'Running forecast…';
+        $('run').disabled = true;
+
+        const payload = {
+          event: $('event').value.trim(),
+          geo: $('geo').value.trim(),
+          naics: $('naics').value.trim(),
+          horizon: $('horizon').value,
+          scenario: $('scenario').value,
+          extra_factors: $('factors').value.trim(),
+          plan: planSel.value
+        };
+
+        // Basic input guard
+        if (!payload.event || !payload.geo || !payload.naics) {
+          statusEl.textContent = 'Please fill Event, City/Region, and Industry/NAICS.';
+          return;
+        }
+
         const res = await fetch('/api/forecast', {
-          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
         });
+
         if (!res.ok) {
-          const txt = await res.text().catch(()=> ''); throw new Error(`API error ${res.status}: ${txt.slice(0,140)}`);
+          const txt = await res.text().catch(()=> '');
+          throw new Error(`API ${res.status}: ${txt.slice(0,140)}`);
         }
         const data = await res.json();
         renderForecast(data);
-        $('status').textContent = data?.meta?.error ? `Note: ${data.meta.error}` : 'Done.';
-        $('downloadReport').classList.remove('hidden');
-        $('showChart').classList.remove('hidden');
+
+        // enable actions
+        $('downloadReport')?.classList.remove('hidden');
+        $('showChart')?.classList.remove('hidden');
+
+        statusEl.textContent = data?.meta?.error ? `Note: ${data.meta.error}` : 'Done.';
       } catch(e){
-        $('status').textContent = 'Error: ' + (e.message || 'failed');
+        statusEl.textContent = 'Error: ' + (e?.message || 'failed');
+        console.error('Forecast error:', e);
       } finally {
         $('run').disabled = false;
       }
-    });
+    }
 
+    // Bind BOTH: button click and form submit
+    const runBtn = $('run');
+    const formEl = document.querySelector('form#forecastForm') || document.querySelector('form');
+    runBtn?.addEventListener('click', (e)=>{ e.preventDefault(); runForecast(); });
+    formEl?.addEventListener('submit', (e)=>{ e.preventDefault(); runForecast(); });
+
+    // Reset
     $('reset')?.addEventListener('click', ()=>{
       ['event','geo','naics','factors'].forEach(id=>$(id).value='');
       ['kpiDemand','kpiCosts','kpiMargin','sum','full'].forEach(id=>$(id).textContent='');
-      $('drivers').innerHTML=''; $('status').textContent='';
-      $('downloadReport').classList.add('hidden');
-      $('showChart').classList.add('hidden');
-      $('impactChart').classList.add('hidden');
+      $('drivers').innerHTML=''; statusEl.textContent='';
+      $('downloadReport')?.classList.add('hidden');
+      $('showChart')?.classList.add('hidden');
+      $('impactChart')?.classList.add('hidden');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
@@ -307,7 +338,7 @@
       });
     });
 
-    // PDF download
+    // PDF
     $('downloadReport')?.addEventListener('click', ()=>{
       const reportElement = document.querySelector('#results');
       const footer = document.createElement('div');
@@ -322,13 +353,14 @@
       html2pdf().set(opt).from(reportElement).save().then(()=> footer.remove());
     });
 
-    // Auth menu toggling is also independent of Firebase:
+    // Auth menu toggle (independent of Firebase)
     const authMenu = $('authMenu'), authButton=$('authButton'), authPanel=$('authPanel');
     authButton?.addEventListener('click', ()=> authPanel.classList.toggle('hidden'));
     document.addEventListener('click', (e)=>{ if (authMenu && !authMenu.contains(e.target)) authPanel?.classList.add('hidden'); });
+  });
   </script>
 
-  <!-- ====== Firebase Auth (MODULE) — protected by try/catch ====== -->
+  <!-- ====== Firebase Auth (MODULE) — guarded; does not block app ====== -->
   <script type="module">
     (async ()=>{
       try {
@@ -382,7 +414,7 @@
         });
       } catch (e) {
         console.warn('Firebase module failed; app continues without auth. Details:', e);
-        // App still works; sign-in panel remains but actions won’t bind.
+        // App still works; Sign in actions won't bind, but forecast UI remains functional.
       }
     })();
   </script>
