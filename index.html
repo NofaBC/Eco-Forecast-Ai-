@@ -1,96 +1,392 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EcoForecast AI™ – Economic Impact Intelligence</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EcoForecast AI™ — Economic Impact Intelligence</title>
+  <meta name="description" content="Forecast the local economic impact of wars, market shocks, weather, regime changes, and new policies on cities and businesses." />
   <link rel="icon" href="/favicon.ico" />
+  <!-- UI libraries -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col items-center">
-  <header class="py-6 text-center">
-    <h1 class="text-3xl font-bold text-indigo-400">EcoForecast AI™</h1>
-    <p class="text-slate-400">Transform global events into business intelligence.</p>
+
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col">
+  <!-- Header -->
+  <header class="sticky top-0 z-20 bg-slate-950/70 backdrop-blur border-b border-slate-800">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-bold text-indigo-400 m-0">EcoForecast AI™</h1>
+        <p class="text-xs text-slate-400">Turn events into city & business forecasts — in seconds</p>
+      </div>
+      <nav class="flex items-center gap-4">
+        <a href="#forecast" class="text-slate-200 hover:text-white">Forecast</a>
+        <a href="#plans" class="text-slate-200 hover:text-white">Plans</a>
+        <!-- Auth menu -->
+        <div id="authMenu" class="relative">
+          <button id="authButton" class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800">
+            Sign in
+          </button>
+          <div id="authPanel" class="hidden absolute right-0 mt-2 w-60 rounded-xl border border-slate-800 bg-slate-900 p-2 shadow-xl">
+            <button id="btnGoogle" class="w-full px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700">Sign in with Google</button>
+            <button id="btnEmail"  class="w-full px-3 py-2 mt-2 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700">Sign in with Email</button>
+            <button id="btnSignOut" class="w-full px-3 py-2 mt-2 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700">Sign out</button>
+          </div>
+        </div>
+        <span id="whoami" class="hidden text-xs px-2 py-1 rounded-full border border-slate-700 text-slate-300"></span>
+      </nav>
+    </div>
   </header>
 
-  <main class="w-full max-w-5xl bg-slate-900 p-6 rounded-2xl shadow-lg">
+  <!-- Main -->
+  <main id="forecast" class="flex-1 max-w-6xl mx-auto px-4 py-6">
     <div class="grid md:grid-cols-2 gap-6">
-      <section>
-        <h2 class="text-xl font-semibold mb-3">Forecast an Impact</h2>
-        <form id="forecastForm" class="space-y-2">
-          <input id="event" class="w-full p-2 rounded bg-slate-800 border border-slate-700" placeholder="Describe event or policy..." />
-          <input id="geo" class="w-full p-2 rounded bg-slate-800 border border-slate-700" placeholder="City / Region" />
-          <input id="naics" class="w-full p-2 rounded bg-slate-800 border border-slate-700" placeholder="Industry / NAICS code" />
-          <select id="plan" class="w-full p-2 rounded bg-slate-800 border border-slate-700">
+      <!-- Left: Form -->
+      <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        <h2 class="text-lg font-semibold">Forecast an Impact</h2>
+        <p class="text-slate-400 text-sm mb-2">Describe the event or paste a bill / EO summary.</p>
+
+        <!-- Preset chips -->
+        <div class="flex flex-wrap gap-2 mb-3">
+          <button class="chip px-3 py-1.5 text-sm rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700" data-preset="war_escalation">War Escalation</button>
+          <button class="chip px-3 py-1.5 text-sm rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700" data-preset="tariff_steel">10% Steel Tariff</button>
+          <button class="chip px-3 py-1.5 text-sm rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700" data-preset="hurricane_landfall">Hurricane Landfall</button>
+          <button class="chip px-3 py-1.5 text-sm rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700" data-preset="regime_change">Regime Change</button>
+          <button class="chip px-3 py-1.5 text-sm rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700" data-preset="party_shift_us">US Party Shift</button>
+        </div>
+
+        <label class="text-sm text-slate-400">Event / Policy</label>
+        <textarea id="event" class="w-full mt-1 mb-3 p-3 rounded-xl bg-slate-800 border border-slate-700 min-h-[100px]" placeholder="Example: 'U.S. imposes 10% tariff on aluminum; expected start in 60 days'"></textarea>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-sm text-slate-400">City / Region</label>
+            <input id="geo" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="e.g., Phoenix, AZ" />
+          </div>
+          <div>
+            <label class="text-sm text-slate-400">Industry (NAICS or keyword)</label>
+            <input id="naics" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="e.g., 3313 or 'Aluminum'" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 mt-3">
+          <div>
+            <label class="text-sm text-slate-400">Horizon</label>
+            <select id="horizon" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700">
+              <option value="short">0–3 months</option>
+              <option value="medium" selected>3–12 months</option>
+              <option value="long">12–24 months</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-sm text-slate-400">Scenario</label>
+            <select id="scenario" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700">
+              <option>Base</option>
+              <option>Best Case</option>
+              <option>Severe</option>
+            </select>
+          </div>
+        </div>
+
+        <label class="text-sm text-slate-400 mt-3 block">Extra factors (optional)</label>
+        <input id="factors" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700" placeholder="wars, weather alerts, regime changes, party control…" />
+
+        <div class="mt-3">
+          <label class="text-sm text-slate-400">Plan</label>
+          <select id="plan" class="w-full mt-1 p-3 rounded-xl bg-slate-800 border border-slate-700">
             <option value="business">Business</option>
             <option value="pro">Pro</option>
             <option value="enterprise">Enterprise</option>
           </select>
-          <button type="submit" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded mt-2">Run Forecast</button>
-        </form>
+        </div>
+
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+          <button id="run" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700">Run Forecast</button>
+          <button id="reset" class="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700">Reset</button>
+          <span id="status" class="text-sm text-slate-400"></span>
+        </div>
       </section>
 
-      <section id="results" class="p-4 bg-slate-800 rounded-xl">
-        <h2 class="text-lg font-semibold mb-2">Economic Impact Assessment</h2>
-        <div id="output" class="text-slate-300">
-          <p class="text-slate-400 text-sm">Run a forecast to view results.</p>
+      <!-- Right: Results -->
+      <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5" id="results">
+        <h2 class="text-lg font-semibold">Economic Impact Assessment</h2>
+        <p class="text-slate-400 text-sm">Auto-generated by EcoForecast AI™ — Analyst Mode</p>
+
+        <!-- KPI cards -->
+        <div class="grid grid-cols-3 gap-3 mt-4">
+          <div class="p-3 rounded-xl bg-slate-800 border border-slate-700">
+            <div class="text-xs text-slate-400">Demand</div>
+            <div id="kpiDemand" class="text-xl font-bold">—</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-800 border border-slate-700">
+            <div class="text-xs text-slate-400">Costs</div>
+            <div id="kpiCosts" class="text-xl font-bold">—</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-800 border border-slate-700">
+            <div class="text-xs text-slate-400">EBITDA Margin</div>
+            <div id="kpiMargin" class="text-xl font-bold">—</div>
+          </div>
         </div>
-        <button id="downloadReport" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded mt-4 hidden">
-          📄 Download PDF
-        </button>
+
+        <!-- Drivers -->
+        <h3 class="text-base font-semibold mt-4">Top Drivers</h3>
+        <ul id="drivers" class="list-disc list-inside text-sm text-slate-300 space-y-1"></ul>
+
+        <!-- Narrative -->
+        <div class="mt-4">
+          <h3 class="text-base font-semibold text-indigo-400">Summary</h3>
+          <p id="sum" class="text-sm text-slate-200 mt-1 whitespace-pre-line"></p>
+          <h3 class="text-base font-semibold text-indigo-400 mt-3">Full Analysis</h3>
+          <p id="full" class="text-sm text-slate-200 mt-1 whitespace-pre-line"></p>
+        </div>
+
+        <!-- Actions -->
+        <div class="mt-4 flex gap-3">
+          <button id="downloadReport" class="hidden px-4 py-2 rounded-xl bg-green-600 hover:bg-green-700">📄 Download PDF</button>
+          <button id="showChart" class="hidden px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700">📊 View Chart</button>
+        </div>
+        <canvas id="impactChart" class="hidden mt-4 bg-slate-950 rounded-xl"></canvas>
       </section>
     </div>
+
+    <!-- Plans -->
+    <section id="plans" class="mt-8 bg-slate-900 border border-slate-800 rounded-2xl p-5">
+      <h2 class="text-lg font-semibold">Plans</h2>
+      <p class="text-slate-400 text-sm mb-3">Choose what fits your workflow</p>
+      <div class="grid md:grid-cols-3 gap-4">
+        <article class="p-4 rounded-xl bg-slate-800 border border-slate-700">
+          <h3 class="font-semibold">Business</h3>
+          <p class="text-sm text-slate-400">Best for SMBs and local operators.</p>
+          <ul class="list-disc list-inside text-sm mt-2 space-y-1">
+            <li>10 forecasts / month</li>
+            <li>KPI + Top Drivers</li>
+            <li>Email / Google sign-in</li>
+          </ul>
+          <button class="mt-3 px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800" onclick="setPlan('business')">Use Business</button>
+        </article>
+        <article class="p-4 rounded-xl bg-slate-800 border border-slate-700">
+          <h3 class="font-semibold">Pro</h3>
+          <p class="text-sm text-slate-400">Analyst-grade insights and scenarios.</p>
+          <ul class="list-disc list-inside text-sm mt-2 space-y-1">
+            <li>Extended narrative & assumptions</li>
+            <li>Best/Base/Severe scenarios</li>
+            <li>Local signals & risks</li>
+          </ul>
+          <button class="mt-3 px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800" onclick="setPlan('pro')">Use Pro</button>
+        </article>
+        <article class="p-4 rounded-xl bg-slate-800 border border-slate-700">
+          <h3 class="font-semibold">Enterprise</h3>
+          <p class="text-sm text-slate-400">Custom models & integrations.</p>
+          <ul class="list-disc list-inside text-sm mt-2 space-y-1">
+            <li>Full narrative + PDF brief</li>
+            <li>API / BI pipeline options</li>
+            <li>Priority support</li>
+          </ul>
+          <button class="mt-3 px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800" onclick="setPlan('enterprise')">Use Enterprise</button>
+        </article>
+      </div>
+    </section>
   </main>
 
-  <footer class="text-slate-500 text-sm py-6">
-    © 2025 EcoForecast AI™ – Part of the GovFlow AI™ Family.
+  <!-- Footer -->
+  <footer class="border-t border-slate-800">
+    <div class="max-w-6xl mx-auto px-4 py-6 text-slate-500 text-sm">
+      © EcoForecast AI™ • Part of the GovFlow AI™ family • For demo use only — not investment advice.
+    </div>
   </footer>
 
-  <script>
-  const form = document.getElementById("forecastForm");
-  const output = document.getElementById("output");
-  const downloadBtn = document.getElementById("downloadReport");
+  <!-- Firebase Auth -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import {
+      getAuth, onAuthStateChanged, signOut,
+      GoogleAuthProvider, signInWithPopup,
+      signInWithEmailAndPassword, createUserWithEmailAndPassword
+    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    output.innerHTML = "<p class='text-yellow-400'>Generating forecast...</p>";
-    const event = document.getElementById("event").value;
-    const geo = document.getElementById("geo").value;
-    const naics = document.getElementById("naics").value;
-    const plan = document.getElementById("plan").value;
-
-    const res = await fetch("/api/forecast", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event, geo, naics, plan, scenario: "Base" })
-    });
-    const data = await res.json();
-
-    output.innerHTML = `
-      <p><b>Demand:</b> ${data.demand_pct ?? 0}%</p>
-      <p><b>Costs:</b> ${data.cost_pct ?? 0}%</p>
-      <p><b>EBITDA Margin:</b> ${data.margin_bps ?? 0} bps</p>
-      <hr class="my-3 border-slate-600" />
-      <h3 class="text-xl font-semibold text-indigo-400">Summary</h3>
-      <p class="mt-2">${data.narrative?.summary || "No summary available."}</p>
-      <h3 class="text-xl font-semibold text-indigo-400 mt-4">Full Analysis</h3>
-      <p class="whitespace-pre-line mt-2">${data.narrative?.full || "No details available."}</p>
-    `;
-
-    downloadBtn.classList.remove("hidden");
-  });
-
-  downloadBtn.addEventListener("click", () => {
-    const reportElement = document.querySelector("#results");
-    const opt = {
-      margin: 0.5,
-      filename: `EcoForecast_Report_${new Date().toISOString().split('T')[0]}.pdf`,
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+    // Public Firebase web config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBBfrQcMn5Hmt2H5EbMh06LHmbCvtUZrU8",
+      authDomain: "eco-forecast-ai.firebaseapp.com",
+      projectId: "eco-forecast-ai",
+      storageBucket: "eco-forecast-ai.firebasestorage.app",
+      messagingSenderId: "133605292809",
+      appId: "1:133605292809:web:681c3eb8beb4d2a506b1d8",
+      measurementId: "G-XR5KV7MY16"
     };
-    html2pdf().set(opt).from(reportElement).save();
-  });
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // Auth menu behavior
+    const authMenu = document.getElementById('authMenu');
+    const authButton = document.getElementById('authButton');
+    const authPanel = document.getElementById('authPanel');
+    const whoami = document.getElementById('whoami');
+
+    authButton.addEventListener('click', () => authPanel.classList.toggle('hidden'));
+    document.addEventListener('click', (e) => {
+      if (!authMenu.contains(e.target)) authPanel.classList.add('hidden');
+    });
+
+    document.getElementById('btnGoogle').addEventListener('click', async ()=>{
+      try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+      catch(e){ alert('Google sign-in failed: ' + e.message); }
+      authPanel.classList.add('hidden');
+    });
+
+    document.getElementById('btnEmail').addEventListener('click', async ()=>{
+      const email = prompt('Email:'); const pass = prompt('Password (min 6):');
+      if (!email || !pass) return;
+      try { await signInWithEmailAndPassword(auth, email, pass); }
+      catch { await createUserWithEmailAndPassword(auth, email, pass); }
+      authPanel.classList.add('hidden');
+    });
+
+    document.getElementById('btnSignOut').addEventListener('click', async ()=>{
+      await signOut(auth); authPanel.classList.add('hidden');
+    });
+
+    onAuthStateChanged(auth, (user)=>{
+      if (user) { authButton.textContent = 'Account'; whoami.classList.remove('hidden'); whoami.textContent = user.email || 'Signed in'; }
+      else { authButton.textContent = 'Sign in'; whoami.classList.add('hidden'); whoami.textContent=''; }
+    });
+
+    // ====== App logic ======
+    const $ = (id) => document.getElementById(id);
+
+    // Preset chips → fill event text
+    const presetsMap = {
+      war_escalation: "A regional conflict escalates with partial blockade of a key shipping lane; insurance premia rise; export controls expand.",
+      tariff_steel: "U.S. imposes a 10% tariff on steel imports effective in 60 days; exemptions uncertain; domestic mills signal capacity strain.",
+      hurricane_landfall: "Category-4 hurricane landfall near major Gulf port; refinery throughput reduced; logistics reroutes extend lead times by 2–4 weeks.",
+      regime_change: "Sudden regime change triggers capital controls and export permit reviews; FX volatility spikes; counterparties reassess risk.",
+      party_shift_us: "One party gains unified control of White House and Congress; agenda prioritizes tax, energy, and labor policy changes within 12 months."
+    };
+    document.querySelectorAll('.chip').forEach(btn=>{
+      btn.addEventListener('click', ()=> { const k = btn.getAttribute('data-preset'); $('event').value = presetsMap[k] || ''; });
+    });
+
+    // Plan persistence
+    const planSel = $('plan');
+    const savedPlan = localStorage.getItem('plan'); if (savedPlan) planSel.value = savedPlan;
+    window.setPlan = (p) => { planSel.value = p; localStorage.setItem('plan', p); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+    planSel.addEventListener('change', e => localStorage.setItem('plan', e.target.value));
+
+    // Run Forecast
+    $('run').addEventListener('click', async ()=>{
+      $('status').textContent = 'Running forecast…';
+      $('run').disabled = true;
+
+      const payload = {
+        event: $('event').value.trim(),
+        geo: $('geo').value.trim(),
+        naics: $('naics').value.trim(),
+        horizon: $('horizon').value,
+        scenario: $('scenario').value,
+        extra_factors: $('factors').value.trim(),
+        plan: planSel.value
+      };
+
+      try {
+        const res = await fetch('/api/forecast', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(`API error ${res.status}`);
+        const data = await res.json();
+        renderForecast(data);
+        $('status').textContent = data?.meta?.error ? `Note: ${data.meta.error}` : 'Done.';
+        // enable actions
+        document.getElementById('downloadReport').classList.remove('hidden');
+        document.getElementById('showChart').classList.remove('hidden');
+      } catch (e) {
+        $('status').textContent = 'Error: ' + (e.message || 'failed');
+      } finally {
+        $('run').disabled = false;
+      }
+    });
+
+    $('reset').addEventListener('click', ()=>{
+      ['event','geo','naics','factors'].forEach(id=>$(id).value='');
+      ['kpiDemand','kpiCosts','kpiMargin','sum','full'].forEach(id=>$(id).textContent='');
+      $('drivers').innerHTML=''; $('status').textContent='';
+      document.getElementById('downloadReport').classList.add('hidden');
+      document.getElementById('showChart').classList.add('hidden');
+      document.getElementById('impactChart').classList.add('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    function fmtPct(x){ if(x===undefined||x===null||isNaN(x)) return '—'; const s=x>0?'+':''; return s + Number(x).toFixed(1) + '%'; }
+
+    function renderForecast(data){
+      $('kpiDemand').textContent = fmtPct(data.demand_pct);
+      $('kpiCosts').textContent  = fmtPct(data.cost_pct);
+      $('kpiMargin').textContent = (data.margin_bps>0?'+':'') + (data.margin_bps??0) + ' bps';
+      // Drivers
+      const drivers = $('drivers'); drivers.innerHTML='';
+      (data.drivers||[]).slice(0,20).forEach(d=>{
+        const li = document.createElement('li');
+        li.textContent = d.text;
+        if (d.tone === 'good') li.classList.add('text-emerald-400');
+        if (d.tone === 'bad')  li.classList.add('text-rose-400');
+        if (d.tone === 'warn') li.classList.add('text-amber-300');
+        drivers.appendChild(li);
+      });
+      // Narrative
+      $('sum').textContent  = data.narrative?.summary || '';
+      $('full').textContent = data.narrative?.full || '';
+      // store for chart
+      window.__kpis = {
+        demand: Number(data.demand_pct || 0),
+        cost: Number(data.cost_pct || 0),
+        marginbps: Number(data.margin_bps || 0)
+      };
+    }
+
+    // Chart
+    document.getElementById('showChart').addEventListener('click', ()=>{
+      const c = document.getElementById('impactChart');
+      c.classList.remove('hidden');
+      const d = window.__kpis || { demand:0, cost:0, marginbps:0 };
+      // destroy if exists
+      if (c.__chart) { c.__chart.destroy(); }
+      c.__chart = new Chart(c, {
+        type: 'bar',
+        data: {
+          labels: ['Demand %', 'Cost %', 'Margin % (bps/100)'],
+          datasets: [{
+            label: 'Impact',
+            data: [d.demand, d.cost, d.marginbps/100],
+            backgroundColor: ['#f87171','#60a5fa','#34d399']
+          }]
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero:true, ticks:{ color:'#cbd5e1' } }, x: { ticks:{ color:'#cbd5e1' } } }
+        }
+      });
+    });
+
+    // PDF download
+    document.getElementById('downloadReport').addEventListener('click', ()=>{
+      const reportElement = document.querySelector('#results');
+      // Temporary footer for branding
+      const footer = document.createElement('div');
+      footer.innerHTML = `
+        <hr class="my-2 border-slate-700"/>
+        <p style="font-size:12px;text-align:center;color:#94a3b8;">
+          © ${new Date().getFullYear()} EcoForecast AI™ | NOFA Business Consulting LLC
+        </p>`;
+      reportElement.appendChild(footer);
+
+      const opt = {
+        margin: 0.4,
+        filename: \`EcoForecast_Report_\${new Date().toISOString().split('T')[0]}.pdf\`,
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(reportElement).save().then(()=> footer.remove());
+    });
   </script>
 </body>
 </html>
