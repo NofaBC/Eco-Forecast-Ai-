@@ -10,6 +10,10 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .chip{padding:.375rem .75rem;border-radius:9999px;border:1px solid #334155;background:#0f172a}
+    .chip:hover{background:#111827}
+  </style>
 </head>
 
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col">
@@ -49,11 +53,11 @@
 
         <!-- Preset chips -->
         <div class="flex flex-wrap gap-2 mb-3">
-          <button class="chip px-3 py-1.5 text-sm rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700" data-preset="war_escalation">War Escalation</button>
-          <button class="chip px-3 py-1.5 text-sm rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700" data-preset="tariff_steel">10% Steel Tariff</button>
-          <button class="chip px-3 py-1.5 text-sm rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700" data-preset="hurricane_landfall">Hurricane Landfall</button>
-          <button class="chip px-3 py-1.5 text-sm rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700" data-preset="regime_change">Regime Change</button>
-          <button class="chip px-3 py-1.5 text-sm rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700" data-preset="party_shift_us">US Party Shift</button>
+          <button class="chip" data-preset="war_escalation">War Escalation</button>
+          <button class="chip" data-preset="tariff_steel">10% Steel Tariff</button>
+          <button class="chip" data-preset="hurricane_landfall">Hurricane Landfall</button>
+          <button class="chip" data-preset="regime_change">Regime Change</button>
+          <button class="chip" data-preset="party_shift_us">US Party Shift</button>
         </div>
 
         <label class="text-sm text-slate-400">Event / Policy</label>
@@ -196,66 +200,12 @@
     </div>
   </footer>
 
-  <!-- Firebase Auth -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-    import {
-      getAuth, onAuthStateChanged, signOut,
-      GoogleAuthProvider, signInWithPopup,
-      signInWithEmailAndPassword, createUserWithEmailAndPassword
-    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-
-    // Public Firebase web config
-    const firebaseConfig = {
-      apiKey: "AIzaSyBBfrQcMn5Hmt2H5EbMh06LHmbCvtUZrU8",
-      authDomain: "eco-forecast-ai.firebaseapp.com",
-      projectId: "eco-forecast-ai",
-      storageBucket: "eco-forecast-ai.firebasestorage.app",
-      messagingSenderId: "133605292809",
-      appId: "1:133605292809:web:681c3eb8beb4d2a506b1d8",
-      measurementId: "G-XR5KV7MY16"
-    };
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-
-    // Auth menu behavior
-    const authMenu = document.getElementById('authMenu');
-    const authButton = document.getElementById('authButton');
-    const authPanel = document.getElementById('authPanel');
-    const whoami = document.getElementById('whoami');
-
-    authButton.addEventListener('click', () => authPanel.classList.toggle('hidden'));
-    document.addEventListener('click', (e) => {
-      if (!authMenu.contains(e.target)) authPanel.classList.add('hidden');
-    });
-
-    document.getElementById('btnGoogle').addEventListener('click', async ()=>{
-      try { await signInWithPopup(auth, new GoogleAuthProvider()); }
-      catch(e){ alert('Google sign-in failed: ' + e.message); }
-      authPanel.classList.add('hidden');
-    });
-
-    document.getElementById('btnEmail').addEventListener('click', async ()=>{
-      const email = prompt('Email:'); const pass = prompt('Password (min 6):');
-      if (!email || !pass) return;
-      try { await signInWithEmailAndPassword(auth, email, pass); }
-      catch { await createUserWithEmailAndPassword(auth, email, pass); }
-      authPanel.classList.add('hidden');
-    });
-
-    document.getElementById('btnSignOut').addEventListener('click', async ()=>{
-      await signOut(auth); authPanel.classList.add('hidden');
-    });
-
-    onAuthStateChanged(auth, (user)=>{
-      if (user) { authButton.textContent = 'Account'; whoami.classList.remove('hidden'); whoami.textContent = user.email || 'Signed in'; }
-      else { authButton.textContent = 'Sign in'; whoami.classList.add('hidden'); whoami.textContent=''; }
-    });
-
-    // ====== App logic ======
+  <!-- ====== App logic (FORECAST UI) — non-module, resilient ====== -->
+  <script>
+    // Safe helpers
     const $ = (id) => document.getElementById(id);
 
-    // Preset chips → fill event text
+    // Preset chips
     const presetsMap = {
       war_escalation: "A regional conflict escalates with partial blockade of a key shipping lane; insurance premia rise; export controls expand.",
       tariff_steel: "U.S. imposes a 10% tariff on steel imports effective in 60 days; exemptions uncertain; domestic mills signal capacity strain.",
@@ -264,57 +214,14 @@
       party_shift_us: "One party gains unified control of White House and Congress; agenda prioritizes tax, energy, and labor policy changes within 12 months."
     };
     document.querySelectorAll('.chip').forEach(btn=>{
-      btn.addEventListener('click', ()=> { const k = btn.getAttribute('data-preset'); $('event').value = presetsMap[k] || ''; });
+      btn.addEventListener('click',()=>{ const k=btn.getAttribute('data-preset'); $('event').value = presetsMap[k]||''; });
     });
 
     // Plan persistence
     const planSel = $('plan');
     const savedPlan = localStorage.getItem('plan'); if (savedPlan) planSel.value = savedPlan;
-    window.setPlan = (p) => { planSel.value = p; localStorage.setItem('plan', p); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-    planSel.addEventListener('change', e => localStorage.setItem('plan', e.target.value));
-
-    // Run Forecast
-    $('run').addEventListener('click', async ()=>{
-      $('status').textContent = 'Running forecast…';
-      $('run').disabled = true;
-
-      const payload = {
-        event: $('event').value.trim(),
-        geo: $('geo').value.trim(),
-        naics: $('naics').value.trim(),
-        horizon: $('horizon').value,
-        scenario: $('scenario').value,
-        extra_factors: $('factors').value.trim(),
-        plan: planSel.value
-      };
-
-      try {
-        const res = await fetch('/api/forecast', {
-          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
-        });
-        if (!res.ok) throw new Error(`API error ${res.status}`);
-        const data = await res.json();
-        renderForecast(data);
-        $('status').textContent = data?.meta?.error ? `Note: ${data.meta.error}` : 'Done.';
-        // enable actions
-        document.getElementById('downloadReport').classList.remove('hidden');
-        document.getElementById('showChart').classList.remove('hidden');
-      } catch (e) {
-        $('status').textContent = 'Error: ' + (e.message || 'failed');
-      } finally {
-        $('run').disabled = false;
-      }
-    });
-
-    $('reset').addEventListener('click', ()=>{
-      ['event','geo','naics','factors'].forEach(id=>$(id).value='');
-      ['kpiDemand','kpiCosts','kpiMargin','sum','full'].forEach(id=>$(id).textContent='');
-      $('drivers').innerHTML=''; $('status').textContent='';
-      document.getElementById('downloadReport').classList.add('hidden');
-      document.getElementById('showChart').classList.add('hidden');
-      document.getElementById('impactChart').classList.add('hidden');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
+    window.setPlan = (p)=>{ planSel.value=p; localStorage.setItem('plan',p); window.scrollTo({top:0,behavior:'smooth'}); };
+    planSel?.addEventListener('change', e=> localStorage.setItem('plan', e.target.value));
 
     function fmtPct(x){ if(x===undefined||x===null||isNaN(x)) return '—'; const s=x>0?'+':''; return s + Number(x).toFixed(1) + '%'; }
 
@@ -343,34 +250,66 @@
       };
     }
 
+    $('run')?.addEventListener('click', async ()=>{
+      $('status').textContent = 'Running forecast…';
+      $('run').disabled = true;
+      const payload = {
+        event: $('event').value.trim(),
+        geo: $('geo').value.trim(),
+        naics: $('naics').value.trim(),
+        horizon: $('horizon').value,
+        scenario: $('scenario').value,
+        extra_factors: $('factors').value.trim(),
+        plan: planSel.value
+      };
+      try{
+        const res = await fetch('/api/forecast', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          const txt = await res.text().catch(()=> ''); throw new Error(`API error ${res.status}: ${txt.slice(0,140)}`);
+        }
+        const data = await res.json();
+        renderForecast(data);
+        $('status').textContent = data?.meta?.error ? `Note: ${data.meta.error}` : 'Done.';
+        $('downloadReport').classList.remove('hidden');
+        $('showChart').classList.remove('hidden');
+      } catch(e){
+        $('status').textContent = 'Error: ' + (e.message || 'failed');
+      } finally {
+        $('run').disabled = false;
+      }
+    });
+
+    $('reset')?.addEventListener('click', ()=>{
+      ['event','geo','naics','factors'].forEach(id=>$(id).value='');
+      ['kpiDemand','kpiCosts','kpiMargin','sum','full'].forEach(id=>$(id).textContent='');
+      $('drivers').innerHTML=''; $('status').textContent='';
+      $('downloadReport').classList.add('hidden');
+      $('showChart').classList.add('hidden');
+      $('impactChart').classList.add('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
     // Chart
-    document.getElementById('showChart').addEventListener('click', ()=>{
-      const c = document.getElementById('impactChart');
+    $('showChart')?.addEventListener('click', ()=>{
+      const c = $('impactChart');
       c.classList.remove('hidden');
       const d = window.__kpis || { demand:0, cost:0, marginbps:0 };
-      // destroy if exists
-      if (c.__chart) { c.__chart.destroy(); }
+      if (c.__chart) c.__chart.destroy();
       c.__chart = new Chart(c, {
         type: 'bar',
         data: {
           labels: ['Demand %', 'Cost %', 'Margin % (bps/100)'],
-          datasets: [{
-            label: 'Impact',
-            data: [d.demand, d.cost, d.marginbps/100],
-            backgroundColor: ['#f87171','#60a5fa','#34d399']
-          }]
+          datasets: [{ label:'Impact', data:[d.demand,d.cost,d.marginbps/100], backgroundColor:['#f87171','#60a5fa','#34d399'] }]
         },
-        options: {
-          plugins: { legend: { display: false } },
-          scales: { y: { beginAtZero:true, ticks:{ color:'#cbd5e1' } }, x: { ticks:{ color:'#cbd5e1' } } }
-        }
+        options: { plugins:{ legend:{display:false}}, scales:{ y:{beginAtZero:true, ticks:{color:'#cbd5e1'}}, x:{ticks:{color:'#cbd5e1'}} } }
       });
     });
 
     // PDF download
-    document.getElementById('downloadReport').addEventListener('click', ()=>{
+    $('downloadReport')?.addEventListener('click', ()=>{
       const reportElement = document.querySelector('#results');
-      // Temporary footer for branding
       const footer = document.createElement('div');
       footer.innerHTML = `
         <hr class="my-2 border-slate-700"/>
@@ -378,15 +317,74 @@
           © ${new Date().getFullYear()} EcoForecast AI™ | NOFA Business Consulting LLC
         </p>`;
       reportElement.appendChild(footer);
-
-      const opt = {
-        margin: 0.4,
-        filename: \`EcoForecast_Report_\${new Date().toISOString().split('T')[0]}.pdf\`,
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-      };
+      const opt = { margin:0.4, filename:\`EcoForecast_Report_\${new Date().toISOString().split('T')[0]}.pdf\`,
+        html2canvas:{scale:2}, jsPDF:{unit:'in', format:'a4', orientation:'portrait'} };
       html2pdf().set(opt).from(reportElement).save().then(()=> footer.remove());
     });
+
+    // Auth menu toggling is also independent of Firebase:
+    const authMenu = $('authMenu'), authButton=$('authButton'), authPanel=$('authPanel');
+    authButton?.addEventListener('click', ()=> authPanel.classList.toggle('hidden'));
+    document.addEventListener('click', (e)=>{ if (authMenu && !authMenu.contains(e.target)) authPanel?.classList.add('hidden'); });
+  </script>
+
+  <!-- ====== Firebase Auth (MODULE) — protected by try/catch ====== -->
+  <script type="module">
+    (async ()=>{
+      try {
+        const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js");
+        const {
+          getAuth, onAuthStateChanged, signOut,
+          GoogleAuthProvider, signInWithPopup,
+          signInWithEmailAndPassword, createUserWithEmailAndPassword
+        } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyBBfrQcMn5Hmt2H5EbMh06LHmbCvtUZrU8",
+          authDomain: "eco-forecast-ai.firebaseapp.com",
+          projectId: "eco-forecast-ai",
+          storageBucket: "eco-forecast-ai.firebasestorage.app",
+          messagingSenderId: "133605292809",
+          appId: "1:133605292809:web:681c3eb8beb4d2a506b1d8",
+          measurementId: "G-XR5KV7MY16"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        const whoami = document.getElementById('whoami');
+        document.getElementById('btnGoogle')?.addEventListener('click', async ()=>{
+          try { await signInWithPopup(auth, new GoogleAuthProvider()); }
+          catch(e){ alert('Google sign-in failed: ' + (e?.message||e)); }
+          document.getElementById('authPanel')?.classList.add('hidden');
+        });
+
+        document.getElementById('btnEmail')?.addEventListener('click', async ()=>{
+          const email = prompt('Email:'); const pass = prompt('Password (min 6):');
+          if (!email || !pass) return;
+          try { await signInWithEmailAndPassword(auth, email, pass); }
+          catch { await createUserWithEmailAndPassword(auth, email, pass); }
+          document.getElementById('authPanel')?.classList.add('hidden');
+        });
+
+        document.getElementById('btnSignOut')?.addEventListener('click', async ()=>{
+          await signOut(auth); document.getElementById('authPanel')?.classList.add('hidden');
+        });
+
+        onAuthStateChanged(auth, (user)=>{
+          const authButton = document.getElementById('authButton');
+          if (user) {
+            authButton && (authButton.textContent = 'Account');
+            whoami?.classList.remove('hidden'); if (whoami) whoami.textContent = user.email || 'Signed in';
+          } else {
+            authButton && (authButton.textContent = 'Sign in');
+            whoami?.classList.add('hidden'); if (whoami) whoami.textContent = '';
+          }
+        });
+      } catch (e) {
+        console.warn('Firebase module failed; app continues without auth. Details:', e);
+        // App still works; sign-in panel remains but actions won’t bind.
+      }
+    })();
   </script>
 </body>
 </html>
